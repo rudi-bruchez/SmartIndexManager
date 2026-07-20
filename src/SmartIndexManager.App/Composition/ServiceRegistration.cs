@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
+using SmartIndexManager.App.ViewModels;
 using SmartIndexManager.Providers.SqlServer;
 
 namespace SmartIndexManager.App.Composition;
@@ -17,6 +18,7 @@ public static class ServiceRegistration
         services.AddSingleton<ILocalizer, ResxLocalizer>();
         services.AddSingleton<IAuthAvailability>(_ => AuthAvailability.ForCurrentOs());
         services.AddSingleton<IIndexLoadService, IndexLoadService>();
+        services.AddTransient<ConnectionManagerViewModel>();
         return services;
     }
 }
