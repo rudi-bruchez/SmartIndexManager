@@ -25,6 +25,7 @@ public class ScriptContractTests
     [InlineData("index-hints-plancache", new[] { "Reference", "Kind" })]
     [InlineData("replication-ag-check", new[] { "InReplicationOrAg" })]
     [InlineData("querystore-enable", new[] { "Applied" })]
+    [InlineData("index-droppable-check", new[] { "IsDroppable" })]
     public void Script_ships_and_declares_expected_columns(string name, string[] expected)
     {
         var script = SqlScriptLoader.Load(ScriptRoot(), name);
