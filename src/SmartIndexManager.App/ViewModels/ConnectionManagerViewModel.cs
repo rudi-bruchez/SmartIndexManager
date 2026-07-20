@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SmartIndexManager.App.Services;
+using SmartIndexManager.Core.Provider;
 
 namespace SmartIndexManager.App.ViewModels;
 
@@ -14,6 +15,8 @@ public sealed partial class ConnectionManagerViewModel : ViewModelBase
     [ObservableProperty] private string _databasesText = "";
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
+
+    public ConnectionProfile? ProfileToConnect { get; private set; }
 
     public ConnectionManagerViewModel(IConnectionStore store, IAuthAvailability auth)
     {
@@ -30,6 +33,35 @@ public sealed partial class ConnectionManagerViewModel : ViewModelBase
     public ConnectionEditorViewModel EditorFor(ConnectionProfile profile) => ConnectionEditorViewModel.FromProfile(profile, _auth);
 
     [RelayCommand]
+    private void Add()
+    {
+        var name = UniqueDefaultName();
+        var profile = new ConnectionProfile
+        {
+            Name = name,
+            Server = "",
+            Auth = AuthMode.WindowsIntegrated,
+        };
+        Profiles.Add(profile);
+        Selected = profile;
+    }
+
+    [RelayCommand]
+    private void Save()
+    {
+        if (Selected is null) return;
+        Upsert(Selected);
+    }
+
+    [RelayCommand]
+    private void Connect()
+    {
+        if (Selected is null) return;
+        ProfileToConnect = Selected;
+        OnPropertyChanged(nameof(ProfileToConnect));
+    }
+
+    [RelayCommand]
     private void Delete(ConnectionProfile profile)
     {
         Profiles.Remove(profile);
@@ -42,5 +74,12 @@ public sealed partial class ConnectionManagerViewModel : ViewModelBase
         if (existing is not null) Profiles[Profiles.IndexOf(existing)] = profile;
         else Profiles.Add(profile);
         _store.Save(Profiles.ToList());
+    }
+
+    private string UniqueDefaultName()
+    {
+        var i = 1;
+        while (Profiles.Any(p => p.Name == $"New connection {i}")) i++;
+        return $"New connection {i}";
     }
 }
