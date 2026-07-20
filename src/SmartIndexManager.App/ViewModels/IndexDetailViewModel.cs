@@ -42,11 +42,11 @@ public sealed partial class IndexDetailViewModel : ViewModelBase
 
         var reference = IndexRef.Of(index);
         Queries.Clear();
-        foreach (var q in await _provider.GetQueryUsageAsync(reference, cancellationToken).ConfigureAwait(false))
+        foreach (var q in await _provider.GetQueryUsageAsync(reference, cancellationToken))
             Queries.Add(q);
 
         Hints.Clear();
-        foreach (var h in await _provider.GetHintsAsync(reference, cancellationToken).ConfigureAwait(false))
+        foreach (var h in await _provider.GetHintsAsync(reference, cancellationToken))
             Hints.Add(h);
 
         ScoreFactors.Clear();

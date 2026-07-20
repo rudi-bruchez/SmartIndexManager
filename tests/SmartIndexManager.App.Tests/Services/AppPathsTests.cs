@@ -10,7 +10,7 @@ public class AppPathsTests
         var paths = new AppPaths(configDir: "/cfg", documentsDir: "/docs", sqlScriptRoot: "/app/sql/sqlserver");
 
         Assert.Equal("/cfg", paths.ConfigDir);
-        Assert.Equal(Path.Combine("/cfg", "snapshots"), paths.SnapshotRoot);
+        Assert.Equal("/cfg", paths.SnapshotRoot);
         Assert.Equal(Path.Combine("/docs", "SmartIndexManager"), paths.DefaultBackupRoot);
         Assert.Equal("/app/sql/sqlserver", paths.SqlScriptRoot);
     }

@@ -10,7 +10,7 @@ public sealed class AppPaths : IAppPaths
     public AppPaths(string configDir, string documentsDir, string sqlScriptRoot)
     {
         ConfigDir = configDir;
-        SnapshotRoot = Path.Combine(configDir, "snapshots");
+        SnapshotRoot = configDir;
         DefaultBackupRoot = Path.Combine(documentsDir, "SmartIndexManager");
         SqlScriptRoot = sqlScriptRoot;
     }
