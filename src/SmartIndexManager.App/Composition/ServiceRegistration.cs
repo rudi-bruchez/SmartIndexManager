@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using SmartIndexManager.App.Services;
 using SmartIndexManager.Providers.SqlServer;
 
 namespace SmartIndexManager.App.Composition;
@@ -10,6 +11,7 @@ public static class ServiceRegistration
     public static IServiceCollection AddAppServices(this IServiceCollection services, string scriptRoot)
     {
         services.AddSqlServerProvider(scriptRoot);
+        services.AddSingleton<IAppPaths>(_ => AppPaths.Default());
         return services;
     }
 }
