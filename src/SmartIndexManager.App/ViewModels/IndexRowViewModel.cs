@@ -16,6 +16,7 @@ public sealed class IndexRowViewModel : ViewModelBase
         Index = index;
         ScoreDetail = score;
         NotDeletable = safety.Eligibility == DeletionEligibility.NotDeletable;
+        NotDeletableReason = safety.BlockReason;
         Redundant = isRedundant;
         ReferencedByHint = isReferencedByHint;
         SupportsForeignKey = index.ProviderProperties.ContainsKey("fkSupport");
@@ -40,6 +41,7 @@ public sealed class IndexRowViewModel : ViewModelBase
     public ScoreColor? ScoreColor => ScoreDetail?.Color;
 
     public bool NotDeletable { get; }
+    public string? NotDeletableReason { get; }
     public bool Redundant { get; }
     public bool ReferencedByHint { get; }
     public bool SupportsForeignKey { get; }

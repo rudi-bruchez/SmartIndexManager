@@ -38,6 +38,18 @@ public class IndexRowViewModelTests
     }
 
     [Fact]
+    public void Not_deletable_index_exposes_the_block_reason_for_the_badge_tooltip()
+    {
+        var index = IndexModelFactory.PrimaryKey();
+        var row = new IndexRowViewModel(index,
+            score: null,
+            safety: new SafetyAssessment(DeletionEligibility.NotDeletable, "Primary key constraint", []),
+            isRedundant: false, isReferencedByHint: false);
+
+        Assert.Equal("Primary key constraint", row.NotDeletableReason);
+    }
+
+    [Fact]
     public void Badges_reflect_redundancy_and_hint_flags()
     {
         var row = new IndexRowViewModel(IndexModelFactory.Nonclustered(),

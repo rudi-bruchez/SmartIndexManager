@@ -54,6 +54,47 @@ public class ConnectionManagerViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Selecting_a_profile_exposes_an_editor_for_it()
+    {
+        var vm = Vm();
+        var profile = new ConnectionProfile { Name = "prod", Server = "PROD01", Auth = AuthMode.SqlLogin, Login = "app" };
+        vm.Selected = profile;
+
+        Assert.NotNull(vm.Editor);
+        Assert.Equal("PROD01", vm.Editor!.Server);
+        Assert.Equal(AuthMode.SqlLogin, vm.Editor.Auth);
+    }
+
+    [Fact]
+    public void Clearing_the_selection_clears_the_editor()
+    {
+        var vm = Vm();
+        vm.AddCommand.Execute(null);
+        Assert.NotNull(vm.Editor);
+
+        vm.Selected = null;
+        Assert.Null(vm.Editor);
+    }
+
+    [Fact]
+    public void Editing_through_the_editor_then_Save_persists_the_edited_fields()
+    {
+        var vm = Vm();
+        vm.AddCommand.Execute(null);
+
+        vm.Editor!.Server = "SRV42";
+        vm.Editor.Auth = AuthMode.SqlLogin;
+        vm.Editor.Login = "app";
+
+        vm.SaveCommand.Execute(null);
+
+        var reloaded = new ConnectionStore(new AppPaths(_dir, _dir, _dir)).Load();
+        Assert.Single(reloaded);
+        Assert.Equal("SRV42", reloaded[0].Server);
+        Assert.Equal("app", reloaded[0].Login);
+    }
+
+    [Fact]
     public void SaveCommand_upserts_selected_profile_and_persists()
     {
         var vm = Vm();

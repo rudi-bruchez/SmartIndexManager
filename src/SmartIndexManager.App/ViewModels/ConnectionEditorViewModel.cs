@@ -18,6 +18,9 @@ public sealed partial class ConnectionEditorViewModel : ViewModelBase
 
     public ConnectionEditorViewModel(IAuthAvailability auth) => _authAvailability = auth;
 
+    public IReadOnlyList<AuthMode> AuthModes { get; } =
+        [AuthMode.WindowsIntegrated, AuthMode.SqlLogin, AuthMode.EntraIdInteractive];
+
     public bool WindowsIntegratedAvailable => _authAvailability.IsAvailable(AuthMode.WindowsIntegrated);
     public string? WindowsIntegratedReason => _authAvailability.UnavailableReason(AuthMode.WindowsIntegrated);
 

@@ -347,5 +347,77 @@ namespace SmartIndexManager.App.Localization {
                 return ResourceManager.GetString("Auth_WindowsIntegratedUnavailable", resourceCulture);
             }
         }
+
+        public static string Action_ToggleTheme {
+            get {
+                return ResourceManager.GetString("Action_ToggleTheme", resourceCulture);
+            }
+        }
+
+        public static string Connection_Title {
+            get {
+                return ResourceManager.GetString("Connection_Title", resourceCulture);
+            }
+        }
+
+        public static string Connection_Add {
+            get {
+                return ResourceManager.GetString("Connection_Add", resourceCulture);
+            }
+        }
+
+        public static string Connection_Save {
+            get {
+                return ResourceManager.GetString("Connection_Save", resourceCulture);
+            }
+        }
+
+        public static string Connection_Delete {
+            get {
+                return ResourceManager.GetString("Connection_Delete", resourceCulture);
+            }
+        }
+
+        public static string Connection_Name {
+            get {
+                return ResourceManager.GetString("Connection_Name", resourceCulture);
+            }
+        }
+
+        public static string Connection_Server {
+            get {
+                return ResourceManager.GetString("Connection_Server", resourceCulture);
+            }
+        }
+
+        public static string Connection_Port {
+            get {
+                return ResourceManager.GetString("Connection_Port", resourceCulture);
+            }
+        }
+
+        public static string Connection_Auth {
+            get {
+                return ResourceManager.GetString("Connection_Auth", resourceCulture);
+            }
+        }
+
+        public static string Connection_Login {
+            get {
+                return ResourceManager.GetString("Connection_Login", resourceCulture);
+            }
+        }
+
+        public static string Connection_Encrypt {
+            get {
+                return ResourceManager.GetString("Connection_Encrypt", resourceCulture);
+            }
+        }
+
+        public static string Connection_TrustServerCertificate {
+            get {
+                return ResourceManager.GetString("Connection_TrustServerCertificate", resourceCulture);
+            }
+        }
     }
 }

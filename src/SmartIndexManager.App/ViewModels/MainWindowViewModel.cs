@@ -11,15 +11,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly IIndexLoadService _load;
     private readonly IPasswordPrompt _prompt;
     private readonly IAppPaths _paths;
+    private readonly IThemeService _theme;
     private readonly ILocalizer _loc;
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _detailCts;
-    private Task? _detailTask;
+    private readonly SemaphoreSlim _detailGate = new(1, 1);
     private IIndexProvider? _provider;
     private IndexDetailViewModel? _detail;
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _statusMessage;
+    [ObservableProperty] private bool _isDarkTheme;
 
     public ConnectionManagerViewModel Connections { get; }
     public IndexGridViewModel Grid { get; }
@@ -34,15 +36,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     public MainWindowViewModel(
         IIndexLoadService load, IPasswordPrompt prompt,
         ConnectionManagerViewModel connections, IndexGridViewModel grid,
-        PermissionStatusViewModel permissions, IAppPaths paths, ILocalizer loc)
+        PermissionStatusViewModel permissions, IAppPaths paths,
+        IThemeService theme, ILocalizer loc)
     {
         _load = load;
         _prompt = prompt;
         _paths = paths;
+        _theme = theme;
         _loc = loc;
         Connections = connections;
         Grid = grid;
         Permissions = permissions;
+        IsDarkTheme = _theme.Current == ThemeVariantKind.Dark;
 
         Grid.PropertyChanged += (_, args) =>
         {
@@ -98,33 +103,47 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     public async Task ShowDetailAsync(IndexRowViewModel? row)
     {
         if (row is null || Detail is null) return;
+
+        // The provider shares one connection (no MARS): only one detail load may run at a
+        // time. Cancel any in-flight load first so it drains fast, then take the gate so no
+        // two loads ever issue overlapping commands, however fast the selection changes.
         _detailCts?.Cancel();
-        var cts = new CancellationTokenSource();
-        _detailCts = cts;
-        _detailTask = Detail.ShowAsync(row, cts.Token);
+        await _detailGate.WaitAsync().ConfigureAwait(true);
         try
         {
-            await _detailTask.ConfigureAwait(true);
+            var detail = Detail;
+            if (detail is null) return;   // connection was reset while we waited
+
+            var cts = new CancellationTokenSource();
+            _detailCts = cts;
+            try
+            {
+                await detail.ShowAsync(row, cts.Token).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception)
+            {
+                StatusMessage = _loc["Detail_Error"];
+            }
+            finally
+            {
+                cts.Dispose();
+                if (ReferenceEquals(_detailCts, cts)) _detailCts = null;
+            }
         }
-        catch (OperationCanceledException) { }
-        catch (Exception)
+        finally
         {
-            StatusMessage = _loc["Detail_Error"];
+            _detailGate.Release();
         }
     }
 
+    // Stops any in-flight detail load and waits for it to drain, so the provider connection
+    // is idle before it is disposed or replaced.
     private async Task StopDetailWorkAsync()
     {
         _detailCts?.Cancel();
-        if (_detailTask is not null)
-        {
-            try { await _detailTask.ConfigureAwait(true); }
-            catch (OperationCanceledException) { }
-            catch { }
-        }
-        _detailCts?.Dispose();
-        _detailCts = null;
-        _detailTask = null;
+        await _detailGate.WaitAsync().ConfigureAwait(true);
+        _detailGate.Release();
     }
 
     private async Task DisposeCurrentProviderAsync()
@@ -137,9 +156,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     [RelayCommand]
     private void Cancel() => _cts?.Cancel();
 
+    [RelayCommand]
+    private void ToggleTheme()
+    {
+        _theme.Toggle();
+        IsDarkTheme = _theme.Current == ThemeVariantKind.Dark;
+    }
+
     public async ValueTask DisposeAsync()
     {
         await StopDetailWorkAsync().ConfigureAwait(true);
         await DisposeCurrentProviderAsync().ConfigureAwait(true);
+        _detailGate.Dispose();
     }
 }

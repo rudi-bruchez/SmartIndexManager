@@ -48,6 +48,7 @@ public class MainWindowViewModelTests : IDisposable
             new StubPrompt(password), connections, new IndexGridViewModel(),
             new PermissionStatusViewModel(new ResxLocalizer()),
             paths,
+            new ThemeService(paths),
             new ResxLocalizer());
     }
 
@@ -67,6 +68,7 @@ public class MainWindowViewModelTests : IDisposable
             new StubPrompt("pw"), connections, new IndexGridViewModel(),
             new PermissionStatusViewModel(new ResxLocalizer()),
             paths,
+            new ThemeService(paths),
             new ResxLocalizer());
     }
 
@@ -97,6 +99,18 @@ public class MainWindowViewModelTests : IDisposable
 
         Assert.Equal(Strings.Connection_Error, vm.StatusMessage);
         Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public void ToggleTheme_flips_and_persists_the_variant()
+    {
+        var vm = Build(password: "pw");
+        var before = vm.IsDarkTheme;
+
+        vm.ToggleThemeCommand.Execute(null);
+
+        Assert.NotEqual(before, vm.IsDarkTheme);
+        Assert.Equal(vm.IsDarkTheme, new ThemeService(new AppPaths(_dir, _dir, _dir)).Current == ThemeVariantKind.Dark);
     }
 
     [Fact]

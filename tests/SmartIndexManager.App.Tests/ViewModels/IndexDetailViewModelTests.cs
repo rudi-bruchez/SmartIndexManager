@@ -38,4 +38,26 @@ public class IndexDetailViewModelTests : IDisposable
         Assert.Single(vm.Hints);
         Assert.Contains(vm.ScoreFactors, f => f.Name == "no-reads");
     }
+
+    [Fact]
+    public async Task ShowAsync_honours_an_already_cancelled_token_and_leaves_collections_untouched()
+    {
+        var index = IndexModelFactory.Nonclustered(name: "IX_Detail");
+        var provider = new FakeIndexProvider
+        {
+            ServerInfo = new ServerInfo { ServerName = "s", ProductVersion = new Version(16, 0), Edition = "Developer", Platform = ServerPlatform.OnPremises, UptimeDays = 100 },
+            Capabilities = new ProviderCapabilities { SupportsQueryStore = true, SupportsPlanCache = true },
+            Permissions = new PermissionReport { CanViewState = true, CanAlter = true, CanAccessQueryStore = true },
+            Usage = [new QueryUsage("SELECT ...", 42, DateTime.UtcNow, UsageSource.PlanCache)]
+        };
+        var row = new IndexRowViewModel(index,
+            new ConfidenceScore(88, ScoreColor.Green, []),
+            new SafetyAssessment(DeletionEligibility.Deletable, null, []), false, false);
+        var vm = new IndexDetailViewModel(provider, new AppPaths(_dir, _dir, _dir), new ResxLocalizer());
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => vm.ShowAsync(row, new CancellationToken(canceled: true)));
+
+        Assert.Empty(vm.Queries);
+    }
 }

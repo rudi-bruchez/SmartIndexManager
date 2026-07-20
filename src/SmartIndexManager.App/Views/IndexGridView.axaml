@@ -22,6 +22,27 @@
                 <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Scans}"    Binding="{Binding Scans}" />
                 <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Updates}"  Binding="{Binding Updates}" />
                 <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Score}"    Binding="{Binding Score}" />
+                <DataGridTemplateColumn Header="">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Border Background="#C0392B" CornerRadius="3" Padding="4,1"
+                                        IsVisible="{Binding NotDeletable}" ToolTip.Tip="{Binding NotDeletableReason}">
+                                    <TextBlock Text="{x:Static loc:Strings.Badge_NotDeletable}" Foreground="White" FontSize="11" />
+                                </Border>
+                                <Border Background="#B5651D" CornerRadius="3" Padding="4,1" IsVisible="{Binding Redundant}">
+                                    <TextBlock Text="{x:Static loc:Strings.Badge_Redundant}" Foreground="White" FontSize="11" />
+                                </Border>
+                                <Border Background="#2E86C1" CornerRadius="3" Padding="4,1" IsVisible="{Binding SupportsForeignKey}">
+                                    <TextBlock Text="{x:Static loc:Strings.Badge_ForeignKey}" Foreground="White" FontSize="11" />
+                                </Border>
+                                <Border Background="#7D3C98" CornerRadius="3" Padding="4,1" IsVisible="{Binding ReferencedByHint}">
+                                    <TextBlock Text="{x:Static loc:Strings.Badge_Hint}" Foreground="White" FontSize="11" />
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </DockPanel>

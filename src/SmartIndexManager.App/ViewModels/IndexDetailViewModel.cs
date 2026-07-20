@@ -31,6 +31,7 @@ public sealed partial class IndexDetailViewModel : ViewModelBase
 
     public async Task ShowAsync(IndexRowViewModel row, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var index = row.Index;
 
         Ddl = SqlServerDdlGenerator.Generate(index) switch
@@ -41,12 +42,16 @@ public sealed partial class IndexDetailViewModel : ViewModelBase
         };
 
         var reference = IndexRef.Of(index);
+        var queries = await _provider.GetQueryUsageAsync(reference, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         Queries.Clear();
-        foreach (var q in await _provider.GetQueryUsageAsync(reference, cancellationToken))
+        foreach (var q in queries)
             Queries.Add(q);
 
+        var hints = await _provider.GetHintsAsync(reference, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         Hints.Clear();
-        foreach (var h in await _provider.GetHintsAsync(reference, cancellationToken))
+        foreach (var h in hints)
             Hints.Add(h);
 
         ScoreFactors.Clear();

@@ -13,6 +13,7 @@ public sealed partial class ConnectionManagerViewModel : ViewModelBase
 
     [ObservableProperty] private ConnectionProfile? _selected;
     [ObservableProperty] private string _databasesText = "";
+    [ObservableProperty] private ConnectionEditorViewModel? _editor;
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
 
@@ -27,6 +28,10 @@ public sealed partial class ConnectionManagerViewModel : ViewModelBase
 
     public IReadOnlyList<string> SelectedDatabases =>
         DatabasesText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    // Keep a mutable editor bound to whatever profile is selected so the view can edit it.
+    partial void OnSelectedChanged(ConnectionProfile? value)
+        => Editor = value is null ? null : EditorFor(value);
 
     public ConnectionEditorViewModel NewEditor() => new(_auth);
 
@@ -51,8 +56,10 @@ public sealed partial class ConnectionManagerViewModel : ViewModelBase
     [RelayCommand]
     private void Save()
     {
-        if (Selected is null) return;
-        Upsert(Selected);
+        if (Editor is null) return;
+        var profile = Editor.ToProfile();
+        Upsert(profile);
+        Selected = Profiles.FirstOrDefault(p => p.Name == profile.Name);
     }
 
     [RelayCommand]
@@ -67,6 +74,7 @@ public sealed partial class ConnectionManagerViewModel : ViewModelBase
     private void Delete(ConnectionProfile profile)
     {
         Profiles.Remove(profile);
+        if (ReferenceEquals(Selected, profile)) Selected = null;
         _store.Save(Profiles.ToList());
     }
 

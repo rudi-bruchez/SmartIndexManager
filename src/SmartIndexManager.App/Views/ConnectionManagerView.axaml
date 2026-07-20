@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             xmlns:loc="clr-namespace:SmartIndexManager.App.Localization"
+             xmlns:conv="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+             x:Class="SmartIndexManager.App.Views.ConnectionManagerView"
+             x:DataType="vm:ConnectionManagerViewModel">
+    <DockPanel MinWidth="240" Margin="8">
+        <TextBlock DockPanel.Dock="Top" Text="{x:Static loc:Strings.Connection_Title}" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4" Margin="0,0,0,4">
+            <Button Content="{x:Static loc:Strings.Connection_Add}" Command="{Binding AddCommand}" />
+            <Button Content="{x:Static loc:Strings.Connection_Save}" Command="{Binding SaveCommand}" />
+            <Button Content="{x:Static loc:Strings.Connection_Delete}" Command="{Binding DeleteCommand}" CommandParameter="{Binding Selected}" />
+        </StackPanel>
+        <ListBox DockPanel.Dock="Top" MaxHeight="140" ItemsSource="{Binding Profiles}" SelectedItem="{Binding Selected}">
+            <ListBox.ItemTemplate>
+                <DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Spacing="4" Margin="0,8,0,0"
+                    IsEnabled="{Binding Editor, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{x:Static loc:Strings.Connection_Name}" />
+            <TextBox Text="{Binding Editor.Name}" />
+            <TextBlock Text="{x:Static loc:Strings.Connection_Server}" />
+            <TextBox Text="{Binding Editor.Server}" />
+            <TextBlock Text="{x:Static loc:Strings.Connection_Port}" />
+            <TextBox Text="{Binding Editor.Port}" />
+            <TextBlock Text="{x:Static loc:Strings.Connection_Auth}" />
+            <ComboBox ItemsSource="{Binding Editor.AuthModes}" SelectedItem="{Binding Editor.Auth}" HorizontalAlignment="Stretch" />
+            <TextBlock Text="{Binding Editor.WindowsIntegratedReason}"
+                       IsVisible="{Binding !Editor.WindowsIntegratedAvailable}"
+                       Foreground="#B5651D" TextWrapping="Wrap" />
+            <TextBlock Text="{x:Static loc:Strings.Connection_Login}" />
+            <TextBox Text="{Binding Editor.Login}" />
+            <CheckBox Content="{x:Static loc:Strings.Connection_Encrypt}" IsChecked="{Binding Editor.Encrypt}" />
+            <CheckBox Content="{x:Static loc:Strings.Connection_TrustServerCertificate}" IsChecked="{Binding Editor.TrustServerCertificate}" />
+        </StackPanel>
+    </DockPanel>
+</UserControl>
