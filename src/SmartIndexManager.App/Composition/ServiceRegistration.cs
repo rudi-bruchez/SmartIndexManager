@@ -15,6 +15,7 @@ public static class ServiceRegistration
         services.AddSingleton<IAppPaths>(_ => AppPaths.Default());
         services.AddSingleton<IConnectionStore, ConnectionStore>();
         services.AddSingleton<ILocalizer, ResxLocalizer>();
+        services.AddSingleton<IAuthAvailability>(_ => AuthAvailability.ForCurrentOs());
         return services;
     }
 }
