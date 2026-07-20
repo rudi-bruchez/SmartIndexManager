@@ -1,4 +1,6 @@
 using Microsoft.Data.SqlClient;
+using SmartIndexManager.Core.Provider;
+using SmartIndexManager.Providers.SqlServer;
 using Testcontainers.MsSql;
 
 namespace SmartIndexManager.Providers.SqlServer.Tests.Integration;
@@ -9,6 +11,18 @@ public sealed class SqlServerContainerFixture : IAsyncLifetime
     public string ConnectionString { get; private set; } = "";
 
     public string Database => new SqlConnectionStringBuilder(ConnectionString).InitialCatalog;
+
+    // Shared connect helper so every integration test stops rebuilding the request by hand.
+    public async Task<IIndexProvider> ConnectAsync(CancellationToken cancellationToken = default)
+    {
+        var b = new SqlConnectionStringBuilder(ConnectionString);
+        var factory = new SqlServerIndexProviderFactory(ScriptRoot());
+        var request = new ConnectionRequest
+        {
+            Server = b.DataSource, Auth = AuthMode.SqlLogin, Login = b.UserID, TrustServerCertificate = true
+        };
+        return await factory.ConnectAsync(request, b.Password, cancellationToken);
+    }
 
     public static string ScriptRoot()
     {
