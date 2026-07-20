@@ -29,11 +29,14 @@ public static class AuditLog
         foreach (var line in File.ReadAllLines(logFilePath))
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
-            AuditEntry? entry;
-            try { entry = JsonSerializer.Deserialize<AuditEntry>(line, LineOptions); }
-            catch (JsonException) { continue; }
-            if (entry is not null) entries.Add(entry);
+            if (TryDeserialize(line) is AuditEntry entry) entries.Add(entry);
         }
         return entries;
+    }
+
+    private static AuditEntry? TryDeserialize(string line)
+    {
+        try { return JsonSerializer.Deserialize<AuditEntry>(line, LineOptions); }
+        catch (JsonException) { return null; }
     }
 }

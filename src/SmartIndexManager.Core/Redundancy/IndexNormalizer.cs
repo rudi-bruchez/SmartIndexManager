@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using SmartIndexManager.Core.Model;
 
@@ -16,19 +17,43 @@ public static partial class IndexNormalizer
         return new NormalizedIndex(key, includes, NormalizeFilter(index.FilterPredicate), index.IsUnique);
     }
 
-    // Syntactic normalization only: lower-case, collapse whitespace, strip
-    // fully-enclosing redundant parentheses. Brackets are deliberately NOT stripped:
-    // removing them could unify two genuinely different predicates (for example a
-    // LIKE '[0-9]%' character class), which would be a false positive. The invariant
-    // is "fewer redundancies reported, never a false one", so bracketed and
-    // unbracketed identifiers stay distinct (a safe false negative).
+    // Syntactic normalization only: lower-case identifiers and keywords, collapse
+    // whitespace, strip fully-enclosing redundant parentheses. String literals are
+    // preserved (including their case) because two predicates WHERE Region = 'US' and
+    // WHERE Region = 'us' filter different rows and must not be reported as identical.
+    // Brackets are deliberately NOT stripped for the same reason (e.g. LIKE '[0-9]%').
     public static string? NormalizeFilter(string? predicate)
     {
         if (string.IsNullOrWhiteSpace(predicate)) return null;
-        var s = predicate.ToLowerInvariant();
+        var s = LowerOutsideStringLiterals(predicate);
         s = Whitespace().Replace(s, " ").Trim();
         s = StripEnclosingParens(s);
         return s;
+    }
+
+    private static string LowerOutsideStringLiterals(string s)
+    {
+        var sb = new StringBuilder(s.Length);
+        bool inString = false;
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (c == '\'')
+            {
+                // SQL escaped quote ('') stays inside the literal.
+                if (inString && i + 1 < s.Length && s[i + 1] == '\'')
+                {
+                    sb.Append("''");
+                    i++;
+                    continue;
+                }
+                inString = !inString;
+                sb.Append(c);
+                continue;
+            }
+            sb.Append(inString ? c : char.ToLowerInvariant(c));
+        }
+        return sb.ToString();
     }
 
     private static string StripEnclosingParens(string s)

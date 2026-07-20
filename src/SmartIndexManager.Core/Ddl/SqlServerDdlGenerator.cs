@@ -48,7 +48,7 @@ public static class SqlServerDdlGenerator
         {
             $"PAD_INDEX = {OnOff(o.PadIndex)}"
         };
-        if (o.FillFactor is int ff) parts.Add($"FILLFACTOR = {ff}");
+        if (o.FillFactor is int ff && ff is >= 1 and <= 100) parts.Add($"FILLFACTOR = {ff}");
         parts.Add($"IGNORE_DUP_KEY = {OnOff(o.IgnoreDupKey)}");
         parts.Add($"ALLOW_ROW_LOCKS = {OnOff(o.AllowRowLocks)}");
         parts.Add($"ALLOW_PAGE_LOCKS = {OnOff(o.AllowPageLocks)}");

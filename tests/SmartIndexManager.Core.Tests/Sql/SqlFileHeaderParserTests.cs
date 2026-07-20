@@ -83,4 +83,20 @@ public class SqlFileHeaderParserTests
         Assert.Equal(AzureSupport.Unsupported, header.Azure);
         Assert.Equal(new[] { "A" }, header.Columns);
     }
+
+    [Fact]
+    public void Tolerates_ordinary_comments_before_metadata_block()
+    {
+        var content = """
+            -- regular license header
+            -- another comment
+            -- sim: name=x
+            -- sim: minversion=11.0
+            -- sim: columns=A
+            SELECT 1;
+            """;
+        var header = SqlFileHeaderParser.Parse(content);
+        Assert.Equal("x", header.Name);
+        Assert.Equal(new[] { "A" }, header.Columns);
+    }
 }

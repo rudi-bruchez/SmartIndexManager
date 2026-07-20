@@ -1,19 +1,27 @@
 using System.Text.Json;
+using SmartIndexManager.Core.IO;
 
 namespace SmartIndexManager.Core.Persistence;
 
 public static class ManifestStore
 {
     public static void Write(string path, Manifest manifest)
-    {
-        var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        File.WriteAllText(path, JsonSerializer.Serialize(manifest, CoreJson.Options));
-    }
+        => AtomicFile.WriteAllText(path, JsonSerializer.Serialize(manifest, CoreJson.Options));
 
     public static Manifest Read(string path)
-        => JsonSerializer.Deserialize<Manifest>(File.ReadAllText(path), CoreJson.Options)
-           ?? throw new InvalidDataException($"manifest at {path} deserialized to null");
+    {
+        var manifest = JsonSerializer.Deserialize<Manifest>(File.ReadAllText(path), CoreJson.Options)
+            ?? throw new InvalidDataException($"manifest at {path} deserialized to null");
+        ValidateSchemaVersion(manifest, path);
+        return manifest;
+    }
+
+    private static void ValidateSchemaVersion(Manifest manifest, string path)
+    {
+        if (manifest.SchemaVersion != Manifest.CurrentSchemaVersion)
+            throw new InvalidDataException(
+                $"manifest at {path} has unsupported schema version {manifest.SchemaVersion}; expected {Manifest.CurrentSchemaVersion}");
+    }
 
     public static Manifest MarkRestored(
         Manifest manifest, string database, string schema, string table, string index, DateTime restoredUtc)

@@ -10,6 +10,11 @@ public sealed class ConfidenceScorer
 
     public ConfidenceScore Score(ScoreInputs inputs)
     {
+        ArgumentNullException.ThrowIfNull(inputs);
+        ArgumentNullException.ThrowIfNull(inputs.Index);
+        if (inputs.InstanceUptimeDays < 0)
+            throw new ArgumentOutOfRangeException(nameof(inputs), "Instance uptime cannot be negative.");
+
         var factors = new List<ScoreFactor>();
         double value = BaseReadScore(inputs, factors);
 
@@ -19,11 +24,11 @@ public sealed class ConfidenceScorer
             value += _options.RedundancyBonus;
             factors.Add(new ScoreFactor("redundant", $"+{_options.RedundancyBonus} redundant with another index"));
         }
-        if (inputs.Index.Usage.Updates > 0)
+        if (inputs.Index.Usage.Updates > 0 && inputs.Index.Usage.TotalReads == 0)
         {
             value += _options.CostlyUpdatesBonus;
             factors.Add(new ScoreFactor("costly-updates",
-                $"+{_options.CostlyUpdatesBonus} {inputs.Index.Usage.Updates} updates"));
+                $"+{_options.CostlyUpdatesBonus} {inputs.Index.Usage.Updates} updates with 0 reads"));
         }
 
         // Caps next: a cap always wins over a bonus.
@@ -39,7 +44,7 @@ public sealed class ConfidenceScorer
             cap = Math.Min(cap, _options.FkSupportCap);
             factors.Add(new ScoreFactor("fk-support", $"cap {_options.FkSupportCap}, supports a foreign key"));
         }
-        if (inputs.Index.FilterPredicate is not null)
+        if (!string.IsNullOrWhiteSpace(inputs.Index.FilterPredicate))
         {
             cap = Math.Min(cap, _options.FilteredCap);
             factors.Add(new ScoreFactor("filtered", $"cap {_options.FilteredCap}, filtered index"));

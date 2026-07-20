@@ -67,10 +67,17 @@ public class ConfidenceScorerCapsTests
     }
 
     [Fact]
-    public void Costly_updates_bonus_applies_when_there_are_some_reads()
+    public void Costly_updates_bonus_applies_only_with_zero_reads()
     {
-        // base score below 100 because of reads; +10 bonus pushes it up
-        var score = new ConfidenceScorer().Score(Build(reads: 10, updates: 1));
-        Assert.Equal(89, score.Value);
+        var withBonus = new ConfidenceScorer().Score(Build(reads: 0, updates: 1_000_000));
+        Assert.Equal(100, withBonus.Value);
+        Assert.Contains(withBonus.Factors, f => f.Name == "costly-updates");
+    }
+
+    [Fact]
+    public void Costly_updates_bonus_is_ignored_when_index_has_reads()
+    {
+        var withoutBonus = new ConfidenceScorer().Score(Build(reads: 10, updates: 1));
+        Assert.DoesNotContain(withoutBonus.Factors, f => f.Name == "costly-updates");
     }
 }

@@ -7,11 +7,18 @@ public static class SqlFileHeaderParser
     public static SqlFileHeader Parse(string fileContent)
     {
         var pairs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        bool seenMetadata = false;
         foreach (var raw in fileContent.Split('\n'))
         {
             var line = raw.Trim();
             if (string.IsNullOrEmpty(line)) continue;
-            if (!line.StartsWith(Prefix, StringComparison.Ordinal)) break;
+            if (!line.StartsWith(Prefix, StringComparison.Ordinal))
+            {
+                if (seenMetadata) break;
+                continue;
+            }
+
+            seenMetadata = true;
             var body = line[Prefix.Length..].Trim();
             int eq = body.IndexOf('=');
             if (eq <= 0) throw new SqlFileHeaderException($"malformed metadata line: '{line}'");

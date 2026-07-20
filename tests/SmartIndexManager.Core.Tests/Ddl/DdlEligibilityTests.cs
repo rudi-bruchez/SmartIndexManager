@@ -36,10 +36,17 @@ public class DdlEligibilityTests
         Assert.Contains("IGNORE_DUP_KEY = OFF", ddl);
     }
 
-    [Fact]
-    public void Omits_fillfactor_when_not_set()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    [InlineData(101)]
+    public void Omits_fillfactor_when_not_set_or_invalid(int? fillFactor)
     {
-        var ddl = Assert.IsType<DdlSuccess>(SqlServerDdlGenerator.Generate(Base())).Sql;
+        var index = Base() with
+        {
+            Options = new IndexOptions { FillFactor = fillFactor }
+        };
+        var ddl = Assert.IsType<DdlSuccess>(SqlServerDdlGenerator.Generate(index)).Sql;
         Assert.DoesNotContain("FILLFACTOR", ddl);
     }
 

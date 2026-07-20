@@ -6,7 +6,7 @@ namespace SmartIndexManager.Core.Tests.Redundancy;
 
 public class IndexNormalizerTests
 {
-    private static IndexModel Index(string filter = null!, params string[] keys) => new()
+    private static IndexModel Index(string? filter = null, params string[] keys) => new()
     {
         Database = "db", Schema = "dbo", Table = "T", Name = "IX",
         Type = IndexType.NonclusteredRowstore,
@@ -17,14 +17,14 @@ public class IndexNormalizerTests
     [Fact]
     public void Key_columns_are_lowercased_for_comparison()
     {
-        var n = IndexNormalizer.Normalize(Index(null!, "CustomerId", "OrderDate"));
+        var n = IndexNormalizer.Normalize(Index(null, "CustomerId", "OrderDate"));
         Assert.Equal(new[] { "customerid", "orderdate" }, n.Key.Select(k => k.Column));
     }
 
     [Fact]
     public void Includes_are_a_case_insensitive_set()
     {
-        var index = Index(null!, "A") with { IncludedColumns = new[] { "Total", "total", "Qty" } };
+        var index = Index(null, "A") with { IncludedColumns = new[] { "Total", "total", "Qty" } };
         var n = IndexNormalizer.Normalize(index);
         Assert.Equal(2, n.Includes.Count);
         Assert.Contains("total", n.Includes);
@@ -35,9 +35,20 @@ public class IndexNormalizerTests
     [InlineData("[Status] = 1", "[status] = 1")]
     [InlineData("(  Status   =   1  )", "status = 1")]
     [InlineData("((Status = 1))", "status = 1")]
+    [InlineData("Region = 'US'", "region = 'US'")]
+    [InlineData("Region = 'us'", "region = 'us'")]
+    [InlineData("Name LIKE '[0-9]%'", "name like '[0-9]%'")]
     [InlineData(null, null)]
     public void Filter_is_normalized_syntactically(string? input, string? expected)
     {
         Assert.Equal(expected, IndexNormalizer.NormalizeFilter(input));
+    }
+
+    [Fact]
+    public void String_literals_preserve_case_so_distinct_values_stay_distinct()
+    {
+        var us = IndexNormalizer.NormalizeFilter("Region = 'US'");
+        var lowerUs = IndexNormalizer.NormalizeFilter("Region = 'us'");
+        Assert.NotEqual(us, lowerUs);
     }
 }

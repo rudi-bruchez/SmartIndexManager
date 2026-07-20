@@ -30,7 +30,8 @@ public sealed record ManifestIndexEntry
 
 public sealed record Manifest
 {
-    public int SchemaVersion { get; init; } = 1;
+    public const int CurrentSchemaVersion = 1;
+    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public string Tool { get; init; } = "SmartIndexManager";
     public required string ToolVersion { get; init; }
     public required DateTime CreatedUtc { get; init; }

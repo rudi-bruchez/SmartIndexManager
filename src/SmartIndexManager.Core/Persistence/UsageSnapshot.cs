@@ -14,7 +14,8 @@ public sealed record SnapshotIndexUsage
 
 public sealed record UsageSnapshot
 {
-    public int SchemaVersion { get; init; } = 1;
+    public const int CurrentSchemaVersion = 1;
+    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public required string Server { get; init; }
     public required string Database { get; init; }
     public required DateTime CapturedUtc { get; init; }
