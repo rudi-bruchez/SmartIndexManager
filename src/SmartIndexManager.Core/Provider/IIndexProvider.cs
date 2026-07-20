@@ -13,11 +13,17 @@ public interface IIndexProvider : IAsyncDisposable
     Task<IReadOnlyList<IndexModel>> GetIndexesAsync(
         IReadOnlyList<string> databases, CancellationToken cancellationToken = default);
 
+    /// <remarks>Implementations return an empty list when the current login lacks the required
+    /// state-viewing permission (VIEW SERVER STATE on-premises, VIEW DATABASE STATE on Azure);
+    /// callers see the gap via <see cref="PermissionReport"/> rather than an exception.</remarks>
     Task<IReadOnlyList<QueryUsage>> GetQueryUsageAsync(
         IndexRef index, CancellationToken cancellationToken = default);
 
     // Per-index so the server filters by name; the dry-run flags a specific index as
     // hint-referenced. Scanning all hints for a database is never needed.
+    /// <remarks>Implementations return an empty list when the current login lacks the required
+    /// state-viewing permission (VIEW SERVER STATE on-premises, VIEW DATABASE STATE on Azure);
+    /// callers see the gap via <see cref="PermissionReport"/> rather than an exception.</remarks>
     Task<IReadOnlyList<IndexHint>> GetHintsAsync(
         IndexRef index, CancellationToken cancellationToken = default);
 
