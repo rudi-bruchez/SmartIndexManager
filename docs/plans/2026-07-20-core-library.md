@@ -2722,7 +2722,8 @@ public static class AuditLog
 
     public static void Append(string logFilePath, AuditEntry entry)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
+        var dir = Path.GetDirectoryName(logFilePath);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         var line = JsonSerializer.Serialize(entry, LineOptions);
         File.AppendAllText(logFilePath, line + Environment.NewLine, Encoding.UTF8);
     }
@@ -2773,6 +2774,11 @@ Spec coverage against `docs/specs/2026-07-20-smartindexmanager-design.md`, Core-
 - Section 12 (audit JSONL): Task 15.
 
 Deferred by design to later plans (not gaps): connection management and permissions (section 11), Query Store enable SQL execution (section 11), dry-run report assembly (section 8, needs live diagnostics), the grid and detail UX (section 12), the provider itself and the `sql/sqlserver` files (sections 3, 4).
+
+Requirements carried forward to those plans (captured here so they are not lost):
+
+- Provider plan: the SQL Server provider must always populate `IndexModel.DataSpace` with the actual filegroup or partition-scheme name read from the catalog. `DataSpace` null must mean "the index is genuinely on the database default filegroup", never "the provider did not read it". Otherwise an index on a secondary filegroup could be restored onto a default that later changed.
+- App plan: the detail screen must state clearly that redundancy detection normalizes filter predicates syntactically, not semantically, and in particular that bracketed and unbracketed identifiers (`[Status] = 1` versus `Status = 1`) are treated as different. This is a deliberate false negative so the DBA understands why two seemingly identical filtered indexes may not be flagged.
 
 Placeholder scan: no TBD/TODO. The freshness weight ships with a concrete linear-decay default and is called out as a tuning follow-up, not a placeholder.
 
