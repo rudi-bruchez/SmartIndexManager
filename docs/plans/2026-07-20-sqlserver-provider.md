@@ -222,8 +222,10 @@ public interface IIndexProvider : IAsyncDisposable
     Task<IReadOnlyList<QueryUsage>> GetQueryUsageAsync(
         IndexRef index, CancellationToken cancellationToken = default);
 
+    // Per-index so the server filters by name; the dry-run flags a specific index as
+    // hint-referenced. Scanning all hints for a database is never needed.
     Task<IReadOnlyList<IndexHint>> GetHintsAsync(
-        string database, CancellationToken cancellationToken = default);
+        IndexRef index, CancellationToken cancellationToken = default);
 
     Task<QueryStoreState> GetQueryStoreStateAsync(
         string database, CancellationToken cancellationToken = default);
@@ -798,6 +800,9 @@ public static class CapabilityResolver
             SupportsQueryStore = queryStore,
             SupportsPlanCache = true,
             SupportsColumnstore = columnstore,
+            // Informational only. The MVP DROP is deliberately a plain DROP INDEX with no
+            // implicit WITH (ONLINE = ON) (design spec section 6). This flag lets the App
+            // offer an online option later; DropIndexAsync does not read it in the MVP.
             SupportsOnlineDrop = azure || enterprise,
             RequiresDatabaseScopedDmv = info.Platform == ServerPlatform.AzureSqlDatabase
         };
@@ -1586,24 +1591,22 @@ ORDER BY ic.object_id, ic.index_id, ic.is_included_column, ic.key_ordinal;
 -- sim: minversion=11.0
 -- sim: azure=supported
 -- sim: columns=ObjectId,IndexId
--- Indexes whose leading key columns cover a foreign key's referencing columns.
+-- Conservative heuristic: an index is flagged FK-supporting when its first key column is a
+-- referencing column of some foreign key on the same table. This deliberately over-flags: it
+-- does not verify that the whole FK column set is an ordered prefix of the index key. For a
+-- guard-rail warning a false "supports a foreign key" is safe; a missed one is not.
 SELECT DISTINCT i.object_id AS ObjectId, i.index_id AS IndexId
 FROM sys.indexes i
+JOIN sys.index_columns ic
+      ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+     AND ic.is_included_column = 0 AND ic.key_ordinal = 1
 WHERE i.index_id >= 1
   AND EXISTS (
       SELECT 1
-      FROM sys.foreign_keys fk
-      JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+      FROM sys.foreign_key_columns fkc
+      JOIN sys.foreign_keys fk ON fk.object_id = fkc.constraint_object_id
       WHERE fk.parent_object_id = i.object_id
-        AND fkc.constraint_column_id = (
-            SELECT MIN(ic.key_ordinal)
-            FROM sys.index_columns ic
-            WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id AND ic.is_included_column = 0)
-        AND EXISTS (
-            SELECT 1 FROM sys.index_columns ic2
-            WHERE ic2.object_id = i.object_id AND ic2.index_id = i.index_id
-              AND ic2.is_included_column = 0 AND ic2.key_ordinal = 1
-              AND ic2.column_id = fkc.parent_column_id));
+        AND fkc.parent_column_id = ic.column_id);
 ```
 
 - [ ] **Step 7: Write the contract test**
@@ -1864,6 +1867,7 @@ public static class DockerAvailable
 `tests/SmartIndexManager.Providers.SqlServer.Tests/Integration/SqlServerContainerFixture.cs`:
 ```csharp
 using Microsoft.Data.SqlClient;
+using SmartIndexManager.Core.Provider;
 using Testcontainers.MsSql;
 using Xunit;
 
@@ -1874,12 +1878,26 @@ public sealed class SqlServerContainerFixture : IAsyncLifetime
     private MsSqlContainer? _container;
     public string ConnectionString { get; private set; } = "";
 
+    public string Database => new SqlConnectionStringBuilder(ConnectionString).InitialCatalog;
+
     public static string ScriptRoot()
     {
         var dir = AppContext.BaseDirectory;
         while (dir is not null && !Directory.Exists(Path.Combine(dir, "sql", "sqlserver")))
             dir = Directory.GetParent(dir)?.FullName;
         return Path.Combine(dir!, "sql", "sqlserver");
+    }
+
+    // Shared connect helper so every integration test stops rebuilding the request by hand.
+    public async Task<IIndexProvider> ConnectAsync(CancellationToken cancellationToken = default)
+    {
+        var b = new SqlConnectionStringBuilder(ConnectionString);
+        var factory = new SqlServerIndexProviderFactory(ScriptRoot());
+        var request = new ConnectionRequest
+        {
+            Server = b.DataSource, Auth = AuthMode.SqlLogin, Login = b.UserID, TrustServerCertificate = true
+        };
+        return await factory.ConnectAsync(request, b.Password, cancellationToken);
     }
 
     public async ValueTask InitializeAsync()
@@ -1941,6 +1959,7 @@ public sealed class SqlClientExecutor : ISqlExecutor
         var rows = new List<SqlRow>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
+            // DBNull is normalized to null here so mappers never see DBNull (SqlRow also guards).
             var cells = new Dictionary<string, object?>(reader.FieldCount, StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < reader.FieldCount; i++)
                 cells[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
@@ -2094,14 +2113,24 @@ public sealed class SqlServerIndexProviderFactory : IIndexProviderFactory
     {
         var connectionString = SqlServerConnectionFactory.BuildConnectionString(request, password);
         var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var executor = new SqlClientExecutor(connection);
-        var serverInfo = await DetectServerInfoAsync(executor, cancellationToken).ConfigureAwait(false);
-        var permissions = await DetectPermissionsAsync(executor, cancellationToken).ConfigureAwait(false);
-        var capabilities = CapabilityResolver.Resolve(serverInfo);
+            var executor = new SqlClientExecutor(connection);
+            var serverInfo = await DetectServerInfoAsync(executor, cancellationToken).ConfigureAwait(false);
+            var permissions = await DetectPermissionsAsync(executor, cancellationToken).ConfigureAwait(false);
+            var capabilities = CapabilityResolver.Resolve(serverInfo);
 
-        return new SqlServerIndexProvider(executor, _scriptRoot, serverInfo, capabilities, permissions);
+            // Ownership of the connection passes to the provider (disposed via the executor).
+            return new SqlServerIndexProvider(executor, _scriptRoot, serverInfo, capabilities, permissions);
+        }
+        catch
+        {
+            // Open succeeded but detection failed: do not leak the connection.
+            await connection.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     private async Task<ServerInfo> DetectServerInfoAsync(ISqlExecutor executor, CancellationToken ct)
@@ -2159,7 +2188,6 @@ public sealed partial class SqlServerIndexProvider : IIndexProvider
 
 `tests/SmartIndexManager.Providers.SqlServer.Tests/Integration/ConnectAndDetectTests.cs`:
 ```csharp
-using Microsoft.Data.SqlClient;
 using SmartIndexManager.Core.Provider;
 using Xunit;
 
@@ -2171,24 +2199,10 @@ public class ConnectAndDetectTests
     private readonly SqlServerContainerFixture _fx;
     public ConnectAndDetectTests(SqlServerContainerFixture fx) => _fx = fx;
 
-    private ConnectionRequest RequestFromFixture(out string password)
-    {
-        var b = new SqlConnectionStringBuilder(_fx.ConnectionString);
-        password = b.Password;
-        return new ConnectionRequest
-        {
-            Server = b.DataSource, Auth = AuthMode.SqlLogin, Login = b.UserID,
-            Encrypt = b.Encrypt, TrustServerCertificate = true
-        };
-    }
-
     [RequiresDockerFact]
     public async Task Connects_and_detects_on_premises_server()
     {
-        var factory = new SqlServerIndexProviderFactory(SqlServerContainerFixture.ScriptRoot());
-        var request = RequestFromFixture(out var password);
-
-        await using var provider = await factory.ConnectAsync(request, password, CancellationToken.None);
+        await using var provider = await _fx.ConnectAsync();
 
         Assert.Equal(ServerPlatform.OnPremises, provider.ServerInfo.Platform);
         Assert.True(provider.ServerInfo.ProductVersion.Major >= 15);   // container image is 2022
@@ -2333,9 +2347,7 @@ Implement in `SqlClientExecutor`:
 
 `tests/SmartIndexManager.Providers.SqlServer.Tests/Integration/GetIndexesTests.cs`:
 ```csharp
-using Microsoft.Data.SqlClient;
 using SmartIndexManager.Core.Model;
-using SmartIndexManager.Core.Provider;
 using Xunit;
 
 namespace SmartIndexManager.Providers.SqlServer.Tests.Integration;
@@ -2349,12 +2361,8 @@ public class GetIndexesTests
     [RequiresDockerFact]
     public async Task Lists_seeded_indexes_with_structure()
     {
-        var b = new SqlConnectionStringBuilder(_fx.ConnectionString);
-        var factory = new SqlServerIndexProviderFactory(SqlServerContainerFixture.ScriptRoot());
-        var request = new ConnectionRequest { Server = b.DataSource, Auth = AuthMode.SqlLogin, Login = b.UserID, TrustServerCertificate = true };
-
-        await using var provider = await factory.ConnectAsync(request, b.Password, CancellationToken.None);
-        var indexes = await provider.GetIndexesAsync(new[] { b.InitialCatalog }, CancellationToken.None);
+        await using var provider = await _fx.ConnectAsync();
+        var indexes = await provider.GetIndexesAsync(new[] { _fx.Database }, CancellationToken.None);
 
         var unused = Assert.Single(indexes, i => i.Name == "IX_Orders_Unused");
         Assert.Equal(IndexType.NonclusteredRowstore, unused.Type);
@@ -2368,12 +2376,8 @@ public class GetIndexesTests
     [RequiresDockerFact]
     public async Task Fk_supporting_index_is_flagged_in_provider_properties()
     {
-        var b = new SqlConnectionStringBuilder(_fx.ConnectionString);
-        var factory = new SqlServerIndexProviderFactory(SqlServerContainerFixture.ScriptRoot());
-        var request = new ConnectionRequest { Server = b.DataSource, Auth = AuthMode.SqlLogin, Login = b.UserID, TrustServerCertificate = true };
-
-        await using var provider = await factory.ConnectAsync(request, b.Password, CancellationToken.None);
-        var indexes = await provider.GetIndexesAsync(new[] { b.InitialCatalog }, CancellationToken.None);
+        await using var provider = await _fx.ConnectAsync();
+        var indexes = await provider.GetIndexesAsync(new[] { _fx.Database }, CancellationToken.None);
 
         // The seed has no FK, so no index should be flagged; this asserts the property path is wired without throwing.
         Assert.All(indexes, i => Assert.False(i.ProviderProperties.ContainsKey("fkSupport")));
@@ -2428,8 +2432,9 @@ public sealed partial class SqlServerIndexProvider
             var rows = await QueryAsync("index-used-by-queries", parameters, cancellationToken).ConfigureAwait(false);
             usage.AddRange(rows.Select(r => QueryUsageMapper.Map(r, UsageSource.PlanCache)));
         }
+        // The database is already current here: read Query Store state without switching again.
         if (Capabilities.SupportsQueryStore
-            && await GetQueryStoreStateAsync(index.Database, cancellationToken).ConfigureAwait(false) != QueryStoreState.Off)
+            && await ReadQueryStoreStateAsync(cancellationToken).ConfigureAwait(false) != QueryStoreState.Off)
         {
             var rows = await QueryAsync("index-used-by-queries-query-store", parameters, cancellationToken).ConfigureAwait(false);
             usage.AddRange(rows.Select(r => QueryUsageMapper.Map(r, UsageSource.QueryStore)));
@@ -2438,13 +2443,11 @@ public sealed partial class SqlServerIndexProvider
     }
 
     public async Task<IReadOnlyList<IndexHint>> GetHintsAsync(
-        string database, CancellationToken cancellationToken = default)
+        IndexRef index, CancellationToken cancellationToken = default)
     {
-        await UseDatabaseAsync(database, cancellationToken).ConfigureAwait(false);
-        // The hint scan is per-index in the query; callers pass the index name via GetQueryUsage flow.
-        // GetHintsAsync scans all cached plan guides/hints for the database and is filtered client-side by name.
+        await UseDatabaseAsync(index.Database, cancellationToken).ConfigureAwait(false);
         var rows = await QueryAsync("index-hints-plancache",
-            new Dictionary<string, object?> { ["@IndexName"] = "" }, cancellationToken).ConfigureAwait(false);
+            new Dictionary<string, object?> { ["@IndexName"] = index.Index }, cancellationToken).ConfigureAwait(false);
         return rows.Select(HintMapper.Map).ToList();
     }
 
@@ -2453,7 +2456,12 @@ public sealed partial class SqlServerIndexProvider
     {
         if (!Capabilities.SupportsQueryStore) return QueryStoreState.NotSupported;
         await UseDatabaseAsync(database, cancellationToken).ConfigureAwait(false);
+        return await ReadQueryStoreStateAsync(cancellationToken).ConfigureAwait(false);
+    }
 
+    // Reads Query Store state assuming the target database is already current (no re-switch).
+    private async Task<QueryStoreState> ReadQueryStoreStateAsync(CancellationToken cancellationToken)
+    {
         var script = Core.Sql.SqlScriptLoader.Load(_scriptRoot, "querystore-state");
         var state = await _executor.ScalarAsync<int?>(script, null, cancellationToken).ConfigureAwait(false);
         return QueryStoreStateMapper.Map(state);
@@ -2461,13 +2469,12 @@ public sealed partial class SqlServerIndexProvider
 }
 ```
 
-Design note on `GetHintsAsync`: passing `@IndexName = ""` makes the `LIKE` match broadly; the design intent is a per-index hint check surfaced in the dry-run. Keep the parameter as the actual index name when the caller wants a single index. Task 16's dry-run wiring (App plan) will call it per index; here the signature stays database-scoped and the empty-string default returns the full set for the database, which the App filters. This is acceptable for the MVP and documented.
+The `index-hints-plancache.sql` `LIKE` predicate is a known imprecision (it can over- or under-match on the index name as a substring); a stricter query-plan-XML shredding version is a v1.x refinement, tracked in the self-review.
 
 - [ ] **Step 2: Write the integration test**
 
 `tests/SmartIndexManager.Providers.SqlServer.Tests/Integration/DiagnosticsTests.cs`:
 ```csharp
-using Microsoft.Data.SqlClient;
 using SmartIndexManager.Core.Provider;
 using Xunit;
 
@@ -2479,30 +2486,20 @@ public class DiagnosticsTests
     private readonly SqlServerContainerFixture _fx;
     public DiagnosticsTests(SqlServerContainerFixture fx) => _fx = fx;
 
-    private async Task<IIndexProvider> ConnectAsync()
-    {
-        var b = new SqlConnectionStringBuilder(_fx.ConnectionString);
-        var factory = new SqlServerIndexProviderFactory(SqlServerContainerFixture.ScriptRoot());
-        var request = new ConnectionRequest { Server = b.DataSource, Auth = AuthMode.SqlLogin, Login = b.UserID, TrustServerCertificate = true };
-        return await factory.ConnectAsync(request, b.Password, CancellationToken.None);
-    }
-
     [RequiresDockerFact]
     public async Task Query_store_state_is_off_on_a_fresh_database()
     {
-        await using var provider = await ConnectAsync();
-        var b = new SqlConnectionStringBuilder(_fx.ConnectionString);
-        var state = await provider.GetQueryStoreStateAsync(b.InitialCatalog, CancellationToken.None);
+        await using var provider = await _fx.ConnectAsync();
+        var state = await provider.GetQueryStoreStateAsync(_fx.Database, CancellationToken.None);
         Assert.Equal(QueryStoreState.Off, state);
     }
 
     [RequiresDockerFact]
     public async Task Query_usage_runs_without_error_and_returns_a_list()
     {
-        await using var provider = await ConnectAsync();
-        var b = new SqlConnectionStringBuilder(_fx.ConnectionString);
+        await using var provider = await _fx.ConnectAsync();
         var usage = await provider.GetQueryUsageAsync(
-            new IndexRef(b.InitialCatalog, "dbo", "Orders", "IX_Orders_Unused"), CancellationToken.None);
+            new IndexRef(_fx.Database, "dbo", "Orders", "IX_Orders_Unused"), CancellationToken.None);
         Assert.NotNull(usage);   // may be empty; the point is the plan-cache query executes
     }
 }
@@ -2529,8 +2526,10 @@ git commit -m "feat(provider): diagnostics (usage, hints, Query Store state) wit
 - Test: `tests/SmartIndexManager.Providers.SqlServer.Tests/Integration/ActionsTests.cs`
 
 **Interfaces:**
-- Consumes: `SqlServerDdlGenerator` (Core, to sanity-check the target is a plain nonclustered rowstore before dropping), `querystore-enable` script.
+- Consumes: the `querystore-enable` script, `Permissions.CanAlter` for the pre-check.
 - Produces: `DropIndexAsync`, `EnableQueryStoreAsync`, and `services.AddSqlServerProvider(scriptRoot)`.
+
+Note: `DropIndexAsync` takes an `IndexRef` (identity only), so it cannot and does not run Core's `SqlServerDdlGenerator`; eligibility is the caller's responsibility (Core `DeletionSafetyEvaluator`). `DROP INDEX` names an identifier, which SQL Server does not allow as a parameter, so this is the one place identifiers are concatenated rather than parameterized; the `Quote` helper (bracket-quoting with `]]` escaping) is the mitigation, exactly as in Core's DDL generator. The same applies to `QUOTENAME` in `querystore-enable.sql` and to `ChangeDatabaseAsync`, which validates the name against `sys.databases` before switching.
 
 - [ ] **Step 1: Write the actions**
 
@@ -2545,9 +2544,11 @@ public sealed partial class SqlServerIndexProvider
 {
     public async Task DropIndexAsync(IndexRef index, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
+        if (!Permissions.CanAlter)
+            throw new InvalidOperationException("DROP INDEX requires ALTER permission, which the current login lacks.");
         await UseDatabaseAsync(index.Database, cancellationToken).ConfigureAwait(false);
-        // Defence in depth: DROP INDEX <index> ON <schema>.<table>. Identifiers are quoted;
-        // the caller (Core DeletionSafetyEvaluator) has already gated eligibility.
+        // DROP INDEX <index> ON <schema>.<table>. Identifiers cannot be parameterized, so they are
+        // bracket-quoted (]] escaped). The caller (Core DeletionSafetyEvaluator) has already gated eligibility.
         var sql = $"DROP INDEX {Quote(index.Index)} ON {Quote(index.Schema)}.{Quote(index.Table)};";
         await _executor.ExecuteAsync(sql, null, timeout, cancellationToken).ConfigureAwait(false);
     }
@@ -2557,6 +2558,8 @@ public sealed partial class SqlServerIndexProvider
     {
         if (!Capabilities.SupportsQueryStore)
             throw new InvalidOperationException("Query Store is not supported on this server.");
+        if (!Permissions.CanAlter)
+            throw new InvalidOperationException("Enabling Query Store requires ALTER permission, which the current login lacks.");
         await UseDatabaseAsync(database, cancellationToken).ConfigureAwait(false);
 
         var script = SqlScriptLoader.Load(_scriptRoot, "querystore-enable");
@@ -2609,8 +2612,6 @@ public class ActionsTests
     [RequiresDockerFact]
     public async Task Drop_index_removes_it_from_the_listing()
     {
-        var b = new SqlConnectionStringBuilder(_fx.ConnectionString);
-
         // Seed a disposable index so the shared fixture stays intact.
         await using (var conn = new SqlConnection(_fx.ConnectionString))
         {
@@ -2620,27 +2621,21 @@ public class ActionsTests
             await cmd.ExecuteNonQueryAsync();
         }
 
-        var factory = new SqlServerIndexProviderFactory(SqlServerContainerFixture.ScriptRoot());
-        var request = new ConnectionRequest { Server = b.DataSource, Auth = AuthMode.SqlLogin, Login = b.UserID, TrustServerCertificate = true };
-        await using var provider = await factory.ConnectAsync(request, b.Password, CancellationToken.None);
-
+        await using var provider = await _fx.ConnectAsync();
         await provider.DropIndexAsync(
-            new IndexRef(b.InitialCatalog, "dbo", "Orders", "IX_Tmp_Drop"), TimeSpan.FromSeconds(30), CancellationToken.None);
+            new IndexRef(_fx.Database, "dbo", "Orders", "IX_Tmp_Drop"), TimeSpan.FromSeconds(30), CancellationToken.None);
 
-        var remaining = await provider.GetIndexesAsync(new[] { b.InitialCatalog }, CancellationToken.None);
+        var remaining = await provider.GetIndexesAsync(new[] { _fx.Database }, CancellationToken.None);
         Assert.DoesNotContain(remaining, i => i.Name == "IX_Tmp_Drop");
     }
 
     [RequiresDockerFact]
     public async Task Enable_query_store_moves_state_to_read_write()
     {
-        var b = new SqlConnectionStringBuilder(_fx.ConnectionString);
-        var factory = new SqlServerIndexProviderFactory(SqlServerContainerFixture.ScriptRoot());
-        var request = new ConnectionRequest { Server = b.DataSource, Auth = AuthMode.SqlLogin, Login = b.UserID, TrustServerCertificate = true };
-        await using var provider = await factory.ConnectAsync(request, b.Password, CancellationToken.None);
+        await using var provider = await _fx.ConnectAsync();
 
-        await provider.EnableQueryStoreAsync(b.InitialCatalog, new QueryStoreSettings(), CancellationToken.None);
-        var state = await provider.GetQueryStoreStateAsync(b.InitialCatalog, CancellationToken.None);
+        await provider.EnableQueryStoreAsync(_fx.Database, new QueryStoreSettings(), CancellationToken.None);
+        var state = await provider.GetQueryStoreStateAsync(_fx.Database, CancellationToken.None);
 
         Assert.Equal(QueryStoreState.ReadWrite, state);
     }
@@ -2679,7 +2674,7 @@ Deferred to the App plan (not gaps): the dry-run report assembly, the deletion b
 
 Requirements carried forward:
 
-- App plan: `GetHintsAsync` is database-scoped and returns the full plan-guide/hint set; the App filters per index for the dry-run. If per-index server-side filtering is preferred later, pass the real index name as `@IndexName`.
+- App plan: `GetHintsAsync(IndexRef)` filters server-side by index name for the dry-run's per-index risk flag. The `LIKE` match on the index name can over- or under-match on a substring; the stricter query-plan-XML version is the v1.x refinement below.
 - User validation (not CI): the Azure SQL Database SQL variants. `server-info.sql` and `replication-ag-check.sql` are marked `azure=unsupported` and need `azure=only` companions returning `UptimeDays = NULL` and replication/AG = false; the on-premises path is what Testcontainers verifies.
 - Provider hardening: `index-hints-plancache.sql` uses `LIKE` matching on plan/hint text, which can over-match (a substring of the index name) or under-match; a stricter XML-shredding version of the plan-cache query is a v1.x refinement.
 
