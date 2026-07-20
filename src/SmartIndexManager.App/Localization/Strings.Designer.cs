@@ -22,7 +22,7 @@ namespace SmartIndexManager.App.Localization {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    internal class Strings {
+    public class Strings {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -63,7 +63,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Connect.
         /// </summary>
-        internal static string Action_Connect {
+        public static string Action_Connect {
             get {
                 return ResourceManager.GetString("Action_Connect", resourceCulture);
             }
@@ -72,7 +72,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Cancel.
         /// </summary>
-        internal static string Action_Cancel {
+        public static string Action_Cancel {
             get {
                 return ResourceManager.GetString("Action_Cancel", resourceCulture);
             }
@@ -81,16 +81,97 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Refresh.
         /// </summary>
-        internal static string Action_Refresh {
+        public static string Action_Refresh {
             get {
                 return ResourceManager.GetString("Action_Refresh", resourceCulture);
             }
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Add.
+        /// </summary>
+        public static string Action_Add {
+            get {
+                return ResourceManager.GetString("Action_Add", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Save.
+        /// </summary>
+        public static string Action_Save {
+            get {
+                return ResourceManager.GetString("Action_Save", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to SmartIndexManager.
+        /// </summary>
+        public static string App_Title {
+            get {
+                return ResourceManager.GetString("App_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Filter.
+        /// </summary>
+        public static string Grid_Filter {
+            get {
+                return ResourceManager.GetString("Grid_Filter", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Databases (comma separated).
+        /// </summary>
+        public static string Connection_DatabasesWatermark {
+            get {
+                return ResourceManager.GetString("Connection_DatabasesWatermark", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DDL.
+        /// </summary>
+        public static string Detail_Ddl {
+            get {
+                return ResourceManager.GetString("Detail_Ddl", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Queries.
+        /// </summary>
+        public static string Detail_Queries {
+            get {
+                return ResourceManager.GetString("Detail_Queries", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Hints.
+        /// </summary>
+        public static string Detail_Hints {
+            get {
+                return ResourceManager.GetString("Detail_Hints", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Score factors.
+        /// </summary>
+        public static string Detail_ScoreFactors {
+            get {
+                return ResourceManager.GetString("Detail_ScoreFactors", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Database.
         /// </summary>
-        internal static string Grid_Column_Database {
+        public static string Grid_Column_Database {
             get {
                 return ResourceManager.GetString("Grid_Column_Database", resourceCulture);
             }
@@ -99,7 +180,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Schema.
         /// </summary>
-        internal static string Grid_Column_Schema {
+        public static string Grid_Column_Schema {
             get {
                 return ResourceManager.GetString("Grid_Column_Schema", resourceCulture);
             }
@@ -108,7 +189,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Table.
         /// </summary>
-        internal static string Grid_Column_Table {
+        public static string Grid_Column_Table {
             get {
                 return ResourceManager.GetString("Grid_Column_Table", resourceCulture);
             }
@@ -117,7 +198,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Index.
         /// </summary>
-        internal static string Grid_Column_Index {
+        public static string Grid_Column_Index {
             get {
                 return ResourceManager.GetString("Grid_Column_Index", resourceCulture);
             }
@@ -126,7 +207,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Type.
         /// </summary>
-        internal static string Grid_Column_Type {
+        public static string Grid_Column_Type {
             get {
                 return ResourceManager.GetString("Grid_Column_Type", resourceCulture);
             }
@@ -135,16 +216,70 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Score.
         /// </summary>
-        internal static string Grid_Column_Score {
+        public static string Grid_Column_Score {
             get {
                 return ResourceManager.GetString("Grid_Column_Score", resourceCulture);
             }
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Key.
+        /// </summary>
+        public static string Grid_Column_Key {
+            get {
+                return ResourceManager.GetString("Grid_Column_Key", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Includes.
+        /// </summary>
+        public static string Grid_Column_Includes {
+            get {
+                return ResourceManager.GetString("Grid_Column_Includes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Size (MB).
+        /// </summary>
+        public static string Grid_Column_SizeMb {
+            get {
+                return ResourceManager.GetString("Grid_Column_SizeMb", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Seeks.
+        /// </summary>
+        public static string Grid_Column_Seeks {
+            get {
+                return ResourceManager.GetString("Grid_Column_Seeks", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Scans.
+        /// </summary>
+        public static string Grid_Column_Scans {
+            get {
+                return ResourceManager.GetString("Grid_Column_Scans", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Updates.
+        /// </summary>
+        public static string Grid_Column_Updates {
+            get {
+                return ResourceManager.GetString("Grid_Column_Updates", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Not deletable.
         /// </summary>
-        internal static string Badge_NotDeletable {
+        public static string Badge_NotDeletable {
             get {
                 return ResourceManager.GetString("Badge_NotDeletable", resourceCulture);
             }
@@ -153,7 +288,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to FK.
         /// </summary>
-        internal static string Badge_ForeignKey {
+        public static string Badge_ForeignKey {
             get {
                 return ResourceManager.GetString("Badge_ForeignKey", resourceCulture);
             }
@@ -162,7 +297,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Hint.
         /// </summary>
-        internal static string Badge_Hint {
+        public static string Badge_Hint {
             get {
                 return ResourceManager.GetString("Badge_Hint", resourceCulture);
             }
@@ -171,7 +306,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Redundant.
         /// </summary>
-        internal static string Badge_Redundant {
+        public static string Badge_Redundant {
             get {
                 return ResourceManager.GetString("Badge_Redundant", resourceCulture);
             }
@@ -180,7 +315,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Usage statistics unavailable (missing VIEW SERVER STATE / VIEW DATABASE STATE).
         /// </summary>
-        internal static string Permission_UsageUnavailable {
+        public static string Permission_UsageUnavailable {
             get {
                 return ResourceManager.GetString("Permission_UsageUnavailable", resourceCulture);
             }
@@ -189,7 +324,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Read-only: ALTER permission missing.
         /// </summary>
-        internal static string Permission_ReadOnly {
+        public static string Permission_ReadOnly {
             get {
                 return ResourceManager.GetString("Permission_ReadOnly", resourceCulture);
             }
@@ -198,7 +333,7 @@ namespace SmartIndexManager.App.Localization {
         /// <summary>
         ///   Looks up a localized string similar to Observed since {0}.
         /// </summary>
-        internal static string Detail_OldestSnapshot {
+        public static string Detail_OldestSnapshot {
             get {
                 return ResourceManager.GetString("Detail_OldestSnapshot", resourceCulture);
             }

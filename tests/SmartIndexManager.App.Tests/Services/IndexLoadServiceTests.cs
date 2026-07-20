@@ -33,6 +33,7 @@ public class IndexLoadServiceTests : IDisposable
         var result = await Service(provider).LoadAsync(Profile(), "pw", ["Sales"], CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);
+        Assert.Same(provider, result.Provider);
         Assert.Equal("PROD01", result.Server.ServerName);
         var pk = result.Rows.Single(r => r.Name == "PK_Orders");
         Assert.True(pk.NotDeletable);            // hard exclusion

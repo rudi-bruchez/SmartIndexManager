@@ -35,10 +35,14 @@ public class MainWindowViewModelTests : IDisposable
             Selected = new ConnectionProfile { Name = "prod", Server = "PROD01", Auth = AuthMode.SqlLogin, Login = "app" },
             DatabasesText = "Sales"
         };
+        var factory = new FakeIndexProviderFactory(provider);
         return new MainWindowViewModel(
-            new IndexLoadService(new FakeIndexProviderFactory(provider), paths),
+            new IndexLoadService(factory, paths),
+            factory,
             new StubPrompt(password), connections, new IndexGridViewModel(),
-            new PermissionStatusViewModel(new ResxLocalizer()), new ResxLocalizer());
+            new PermissionStatusViewModel(new ResxLocalizer()),
+            paths,
+            new ResxLocalizer());
     }
 
     [Fact]

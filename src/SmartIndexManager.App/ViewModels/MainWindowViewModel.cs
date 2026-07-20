@@ -9,9 +9,13 @@ namespace SmartIndexManager.App.ViewModels;
 public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IIndexLoadService _load;
+    private readonly IIndexProviderFactory _factory;
     private readonly IPasswordPrompt _prompt;
+    private readonly IAppPaths _paths;
     private readonly ILocalizer _loc;
     private CancellationTokenSource? _cts;
+    private IIndexProvider? _provider;
+    private IndexDetailViewModel? _detail;
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _statusMessage;
@@ -19,19 +23,32 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public ConnectionManagerViewModel Connections { get; }
     public IndexGridViewModel Grid { get; }
     public PermissionStatusViewModel Permissions { get; }
-    public IIndexProvider? CurrentProvider => _load.CurrentProvider;
+
+    public IndexDetailViewModel? Detail
+    {
+        get => _detail;
+        private set { _detail = value; OnPropertyChanged(nameof(Detail)); }
+    }
 
     public MainWindowViewModel(
-        IIndexLoadService load, IPasswordPrompt prompt,
+        IIndexLoadService load, IIndexProviderFactory factory, IPasswordPrompt prompt,
         ConnectionManagerViewModel connections, IndexGridViewModel grid,
-        PermissionStatusViewModel permissions, ILocalizer loc)
+        PermissionStatusViewModel permissions, IAppPaths paths, ILocalizer loc)
     {
         _load = load;
+        _factory = factory;
         _prompt = prompt;
+        _paths = paths;
         _loc = loc;
         Connections = connections;
         Grid = grid;
         Permissions = permissions;
+
+        Grid.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(IndexGridViewModel.SelectedRow))
+                _ = ShowDetailAsync(Grid.SelectedRow);
+        };
     }
 
     [RelayCommand]
@@ -50,7 +67,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         StatusMessage = _loc["Action_Connect"];
         try
         {
+            await DisposeCurrentProviderAsync().ConfigureAwait(true);
+
             var result = await _load.LoadAsync(profile, password, Connections.SelectedDatabases, _cts.Token).ConfigureAwait(true);
+            _provider = result.Provider;
+            Detail = new IndexDetailViewModel(_provider, _paths, _loc);
             Grid.SetRows(result.Rows);
             Permissions.Update(result.Permissions, result.Capabilities);
             StatusMessage = result.Server.ServerName;
@@ -67,6 +88,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    public async Task ShowDetailAsync(IndexRowViewModel? row)
+    {
+        if (row is null || Detail is null) return;
+        await Detail.ShowAsync(row, CancellationToken.None).ConfigureAwait(true);
+    }
+
+    private async Task DisposeCurrentProviderAsync()
+    {
+        if (_provider is null) return;
+        await _provider.DisposeAsync().ConfigureAwait(true);
+        _provider = null;
+    }
+
     [RelayCommand]
     private void Cancel() => _cts?.Cancel();
+
+    private static ConnectionRequest ToRequest(ConnectionProfile p) => new()
+    {
+        Server = p.Server, Port = p.Port, Auth = p.Auth, Login = p.Login,
+        Encrypt = p.Encrypt, TrustServerCertificate = p.TrustServerCertificate
+    };
 }

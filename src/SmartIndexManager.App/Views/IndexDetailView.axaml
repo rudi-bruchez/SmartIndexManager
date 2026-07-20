@@ -1,22 +1,23 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             xmlns:loc="clr-namespace:SmartIndexManager.App.Localization"
              x:Class="SmartIndexManager.App.Views.IndexDetailView"
              x:DataType="vm:IndexDetailViewModel">
     <ScrollViewer>
         <StackPanel Margin="8" Spacing="8">
-            <TextBlock Text="DDL" FontWeight="SemiBold" />
+            <TextBlock Text="{x:Static loc:Strings.Detail_Ddl}" FontWeight="SemiBold" />
             <TextBox Text="{Binding Ddl}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="120" />
             <TextBlock Text="{Binding OldestSnapshotText}" />
-            <TextBlock Text="Queries" FontWeight="SemiBold" />
+            <TextBlock Text="{x:Static loc:Strings.Detail_Queries}" FontWeight="SemiBold" />
             <ItemsControl ItemsSource="{Binding Queries}">
                 <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding QueryText}" /></DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>
-            <TextBlock Text="Hints" FontWeight="SemiBold" />
+            <TextBlock Text="{x:Static loc:Strings.Detail_Hints}" FontWeight="SemiBold" />
             <ItemsControl ItemsSource="{Binding Hints}">
                 <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Reference}" /></DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>
-            <TextBlock Text="Score factors" FontWeight="SemiBold" />
+            <TextBlock Text="{x:Static loc:Strings.Detail_ScoreFactors}" FontWeight="SemiBold" />
             <ItemsControl ItemsSource="{Binding ScoreFactors}">
                 <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Description}" /></DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>

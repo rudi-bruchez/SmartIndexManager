@@ -15,8 +15,6 @@ public sealed class IndexLoadService : IIndexLoadService
     private readonly IAppPaths _paths;
     private readonly ConfidenceScorer _scorer = new();
 
-    public IIndexProvider? CurrentProvider { get; private set; }
-
     public IndexLoadService(IIndexProviderFactory factory, IAppPaths paths)
     {
         _factory = factory;
@@ -28,14 +26,7 @@ public sealed class IndexLoadService : IIndexLoadService
         IReadOnlyList<string> databases, CancellationToken cancellationToken)
     {
         var request = ToRequest(profile);
-        if (CurrentProvider is not null)
-        {
-            await CurrentProvider.DisposeAsync().ConfigureAwait(false);
-            CurrentProvider = null;
-        }
-
         var provider = await _factory.ConnectAsync(request, password, cancellationToken).ConfigureAwait(false);
-        CurrentProvider = provider;
 
         var indexes = await provider.GetIndexesAsync(databases, cancellationToken).ConfigureAwait(false);
 
@@ -77,7 +68,7 @@ public sealed class IndexLoadService : IIndexLoadService
             rows.Add(new IndexRowViewModel(index, score, safety, isRedundant, isReferencedByHint: false));
         }
 
-        return new LoadResult(provider.ServerInfo, provider.Capabilities, provider.Permissions, rows);
+        return new LoadResult(provider, provider.ServerInfo, provider.Capabilities, provider.Permissions, rows);
     }
 
     private void WriteSnapshot(ServerInfo server, IReadOnlyList<string> databases, IReadOnlyList<IndexModel> indexes)

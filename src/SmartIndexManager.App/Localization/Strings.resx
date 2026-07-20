@@ -67,6 +67,51 @@
   <data name="Action_Refresh" xml:space="preserve">
     <value>Refresh</value>
   </data>
+  <data name="Action_Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Action_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="App_Title" xml:space="preserve">
+    <value>SmartIndexManager</value>
+  </data>
+  <data name="Grid_Filter" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Connection_DatabasesWatermark" xml:space="preserve">
+    <value>Databases (comma separated)</value>
+  </data>
+  <data name="Detail_Ddl" xml:space="preserve">
+    <value>DDL</value>
+  </data>
+  <data name="Detail_Queries" xml:space="preserve">
+    <value>Queries</value>
+  </data>
+  <data name="Detail_Hints" xml:space="preserve">
+    <value>Hints</value>
+  </data>
+  <data name="Detail_ScoreFactors" xml:space="preserve">
+    <value>Score factors</value>
+  </data>
+  <data name="Grid_Column_Key" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="Grid_Column_Includes" xml:space="preserve">
+    <value>Includes</value>
+  </data>
+  <data name="Grid_Column_SizeMb" xml:space="preserve">
+    <value>Size (MB)</value>
+  </data>
+  <data name="Grid_Column_Seeks" xml:space="preserve">
+    <value>Seeks</value>
+  </data>
+  <data name="Grid_Column_Scans" xml:space="preserve">
+    <value>Scans</value>
+  </data>
+  <data name="Grid_Column_Updates" xml:space="preserve">
+    <value>Updates</value>
+  </data>
   <data name="Grid_Column_Database" xml:space="preserve">
     <value>Database</value>
   </data>
