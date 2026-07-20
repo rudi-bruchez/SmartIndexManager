@@ -13,6 +13,44 @@ public sealed class ConfidenceScorer
         var factors = new List<ScoreFactor>();
         double value = BaseReadScore(inputs, factors);
 
+        // Bonuses first.
+        if (inputs.IsRedundant)
+        {
+            value += _options.RedundancyBonus;
+            factors.Add(new ScoreFactor("redundant", $"+{_options.RedundancyBonus} redundant with another index"));
+        }
+        if (inputs.Index.Usage.Updates > 0 && inputs.Index.Usage.TotalReads == 0)
+        {
+            value += _options.CostlyUpdatesBonus;
+            factors.Add(new ScoreFactor("costly-updates",
+                $"+{_options.CostlyUpdatesBonus} {inputs.Index.Usage.Updates} updates with 0 reads"));
+        }
+
+        // Caps next: a cap always wins over a bonus.
+        int cap = 100;
+        if (inputs.InstanceUptimeDays < _options.UptimeReliabilityThresholdDays)
+        {
+            cap = Math.Min(cap, _options.ShortUptimeCap);
+            factors.Add(new ScoreFactor("short-uptime",
+                $"cap {_options.ShortUptimeCap}, uptime {inputs.InstanceUptimeDays}d below threshold"));
+        }
+        if (inputs.SupportsForeignKey)
+        {
+            cap = Math.Min(cap, _options.FkSupportCap);
+            factors.Add(new ScoreFactor("fk-support", $"cap {_options.FkSupportCap}, supports a foreign key"));
+        }
+        if (inputs.Index.FilterPredicate is not null)
+        {
+            cap = Math.Min(cap, _options.FilteredCap);
+            factors.Add(new ScoreFactor("filtered", $"cap {_options.FilteredCap}, filtered index"));
+        }
+        if (inputs.ReferencedByHint)
+        {
+            cap = Math.Min(cap, _options.HintCap);
+            factors.Add(new ScoreFactor("hint", $"cap {_options.HintCap}, referenced by a hint or plan guide"));
+        }
+
+        value = Math.Min(value, cap);
         int final = (int)Math.Round(Math.Clamp(value, 0, 100));
         return new ConfidenceScore(final, Colorize(final), factors);
     }
