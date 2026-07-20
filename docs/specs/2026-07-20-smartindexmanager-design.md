@@ -106,6 +106,8 @@ Contrainte de conception : toute fonctionnalité doit être appelable depuis un 
 - Diagnostic : requêtes utilisant un index (plan cache, Query Store), hints et plan guides, support de FK, appartenance à la réplication ou à un availability group.
 - Actions : exécution d'un `DROP INDEX`, activation du Query Store.
 
+Toutes les opérations longues (découverte, collecte, suppression) sont asynchrones (`Task`/`Task<T>`) et acceptent un `CancellationToken`. L'annulation arrête le traitement entre deux index ; un `DROP INDEX` déjà envoyé ne peut pas être rappelé.
+
 ### Modèle d'index commun
 
 Propriétés communes : base, schéma, table, nom, type (énumération : clustered, nonclustered, clustered columnstore, nonclustered columnstore, XML, spatial, fulltext, heap, hypothetical), colonnes de clé ordonnées avec direction, colonnes `INCLUDE`, prédicat de filtre, unicité, contrainte associée (PK, UNIQUE, aucune), désactivé ou non, tailles (pages, lignes), statistiques d'usage (seeks, scans, lookups, updates, dates de dernier usage) et statistiques opérationnelles.
@@ -153,7 +155,7 @@ Repris ou adaptés du dépôt `tsql-scripts/index-management` : `index-usage.sql
 - `server-info.sql` : version, édition, plateforme, uptime.
 - `replication-ag-check.sql` : appartenance de la base à la réplication ou à un availability group.
 
-Le DDL de recréation n'est pas produit par une requête SQL : il est généré par le Core en C# à partir des métadonnées collectées (déterministe et testable sans base).
+Le DDL de recréation n'est pas produit par une requête SQL : il est généré par le Core en C# à partir des métadonnées collectées (déterministe et testable sans base). Dans le MVP, seuls les index dont le DDL peut être reconstruit avec certitude sont éligibles à la suppression : index non partitionnés, avec les options courantes (`FILLFACTOR`, `PAD_INDEX`, `ALLOW_ROW_LOCKS`, `ALLOW_PAGE_LOCKS`, `IGNORE_DUP_KEY`, `DATA_COMPRESSION` en `ROW`, `PAGE` ou `NONE`). Un index dont le DDL ne peut pas être garanti (partitionnement, compression ou options non gérées par le générateur) est refusé à la suppression avec le badge « DDL non sauvegardable » et la raison.
 
 ## 5. Algorithme de redondance
 
@@ -162,6 +164,8 @@ La détection ne compare que les index nonclustered rowstore d'une même table. 
 ### Normalisation
 
 Chaque index est réduit à un tuple : liste ordonnée de (colonne, direction), ensemble des colonnes `INCLUDE`, prédicat de filtre normalisé (casse, espaces, parenthèses superflues), drapeau d'unicité. Les noms de colonnes sont comparés sans sensibilité à la casse (collation par défaut du serveur notée dans le panneau détail si elle diffère).
+
+La normalisation du prédicat de filtre est syntaxique, pas sémantique : deux prédicats logiquement équivalents mais écrits différemment ne sont pas reconnus comme identiques. Le MVP assume ce faux négatif (il signale moins de redondances, jamais de fausses).
 
 ### Règles
 
@@ -213,13 +217,15 @@ Un score de 0 à 100 par index éligible, où 100 signifie « suppression très 
 
 Calcul (valeurs par défaut, configurables) :
 
-- Base 100 si aucune lecture (seeks + scans + lookups = 0) depuis le démarrage. Toute lecture fait chuter le score proportionnellement au volume et à la fraîcheur (une lecture récente pèse plus qu'une ancienne).
+- Base 100 si aucune lecture (seeks + scans + lookups = 0) depuis le démarrage. Toute lecture fait chuter le score proportionnellement au volume et à la fraîcheur (une lecture récente pèse plus qu'une ancienne). La formule reste configurable ; l'implémentation par défaut, donnée à titre indicatif, part de `base = 100 - min(100, 20 * log10(1 + lecturesPondérées))`, où `lecturesPondérées` applique à chaque lecture un facteur de fraîcheur décroissant avec l'âge (facteur exact à fixer à l'implémentation).
 - Uptime : si l'uptime est inférieur au seuil de fiabilité (défaut 30 jours), le score est plafonné à 60 et le badge de fiabilité passe en orange.
 - Updates élevés avec zéro lecture : bonus (l'index coûte sans servir), plafonné à plus 10.
 - Redondance détectée (R1, R2, R3) : bonus plus 10 (un jumeau couvre le besoin).
 - Support de FK : plafonné à 40.
 - Index filtré : plafonné à 50.
 - Hint ou plan guide détecté : plafonné à 10.
+
+Les bonus sont ajoutés d'abord, puis les plafonds sont appliqués, et le résultat final est borné entre 0 et 100. Un plafond l'emporte donc toujours sur un bonus (un index avec hint reste plafonné à 10 même s'il est redondant).
 
 Seuils de couleur configurables, défaut : vert 80 et plus, orange 50 à 79, rouge moins de 50. Le score est un indicateur d'aide à la décision, jamais un déclencheur automatique.
 
@@ -242,6 +248,7 @@ Le rapport est exportable en JSON et en texte (markdown), et il est archivé dan
 
 - Répertoire par session : `<racine>/<serveur>/<horodatage ISO>/`, racine configurable, défaut `Documents/SmartIndexManager/`. Le nom de serveur est assaini pour le système de fichiers (caractères interdits remplacés).
 - Un fichier par index : `<base>.<schéma>.<table>.<index>.sql`, contenant le DDL de recréation complet (colonnes, includes, filtre, unicité, options pertinentes du dictionnaire provider comme fillfactor et compression), précédé d'un en-tête en commentaires : date, serveur, base, opérateur, raison automatique, commentaire libre, statistiques au moment de la suppression.
+- Les composantes du nom de fichier sont assainies : tout caractère ambigu pour le système de fichiers ou pour le délimiteur (point, crochets, barres, espaces, caractères interdits) est remplacé par un tiret bas. Le nom de fichier n'est donc pas réversible ; les identifiants réels et exacts vivent dans l'en-tête du fichier et dans le champ `file` du manifeste, qui fait foi (l'écran de restauration lit le manifeste, jamais le nom de fichier).
 - Le script global de suppression (mode génération) est écrit dans le même répertoire : `drop-session.sql`.
 
 ### `manifest.json`
@@ -250,6 +257,7 @@ Un par session :
 
 ```json
 {
+  "schemaVersion": 1,
   "tool": "SmartIndexManager",
   "toolVersion": "1.0.0",
   "createdUtc": "2026-07-20T10:00:00Z",
@@ -279,7 +287,7 @@ Un par session :
 
 ### Écran de restauration
 
-Liste les sessions trouvées dans la racine de sauvegarde (lecture des manifestes), affiche les index de chaque session avec leur statut, permet de rejouer le DDL d'un ou plusieurs index sur la connexion courante. Une restauration réussie met à jour `restoredUtc` dans le manifeste et écrit une entrée d'audit. Si l'index existe déjà, la restauration de cet index est refusée avec message (pas de `DROP` implicite).
+Liste les sessions trouvées dans la racine de sauvegarde (lecture des manifestes), affiche les index de chaque session avec leur statut, permet de rejouer le DDL d'un ou plusieurs index sur la connexion courante. Une restauration réussie met à jour `restoredUtc` dans le manifeste et écrit une entrée d'audit. Si l'index existe déjà, la restauration de cet index est refusée avec message (pas de `DROP` implicite). Si la table ou la base cible n'existe plus, la restauration est également refusée avec un message explicite.
 
 ## 10. Snapshots locaux d'usage (MVP light)
 
@@ -288,7 +296,7 @@ Objectif : atténuer la volatilité des DMV sans rien installer côté serveur.
 - Quand : automatiquement à chaque connexion à une base, après la collecte des métadonnées.
 - Quoi : par index, les compteurs d'usage (seeks, scans, lookups, updates, dates de dernier usage) plus l'uptime de l'instance au moment de la capture.
 - Où : répertoire de configuration de l'application (emplacement standard par plateforme : `ApplicationData` sur Windows, `XDG_CONFIG_HOME` sur Linux, `~/Library/Application Support` sur macOS), sous `snapshots/<serveur>/<base>/<horodatage>.json`.
-- Format : JSON, une capture par fichier. Une rétention configurable (défaut 90 jours) supprime les captures anciennes.
+- Format : JSON, une capture par fichier, avec un champ `schemaVersion` pour anticiper les évolutions de format. Une rétention configurable (défaut 90 jours) supprime les captures anciennes.
 
 Dans le MVP, l'outil capture et affiche seulement la date de la capture la plus ancienne disponible (« observé depuis le ... ») dans le panneau détail. La comparaison entre captures et la détection d'usage intermittent arrivent en v1.x, l'analyse de tendance en v2. Le format de fichier est conçu pour rester lisible par ces versions.
 
@@ -297,6 +305,8 @@ Dans le MVP, l'outil capture et affiche seulement la date de la capture la plus 
 ### Gestionnaire de connexions
 
 Connexions nommées, persistées dans la configuration locale : nom, serveur, port, options (chiffrement, trust server certificate), type d'authentification (Windows intégrée, SQL, Microsoft Entra ID interactif), login pour l'authentification SQL. Le mot de passe n'est jamais persisté, ni en clair, ni chiffré, ni dans un keychain : il est saisi à chaque connexion. L'authentification Entra ID interactive passe par le flux du fournisseur (MSAL via `Microsoft.Data.SqlClient`), sans stockage de secret par l'outil.
+
+L'authentification Windows intégrée n'est disponible nativement que sur Windows, ou sur une machine Linux ou macOS configurée pour Kerberos. Sur les autres configurations, l'option est grisée avec une explication ; l'authentification SQL et Entra ID restent utilisables.
 
 ### Vérification des permissions
 
@@ -342,7 +352,7 @@ L'activation est journalisée dans l'audit.
 - CommunityToolkit.Mvvm pour le MVVM.
 - `Microsoft.Data.SqlClient` (auth Windows, SQL, Entra ID interactif).
 - `Microsoft.Extensions.DependencyInjection` pour l'injection de dépendances dans les trois couches.
-- Tests : xUnit. Le Core est testable sans base : normalisation et règles de redondance, calcul de score, génération de DDL, parsing des en-têtes de fichiers SQL, lecture et écriture des manifestes et snapshots. Tests d'intégration provider avec Testcontainers (SQL Server en conteneur) ; l'exécution en CI est prise en charge par l'utilisateur.
+- Tests : xUnit. Le Core est testable sans base : normalisation et règles de redondance, calcul de score, génération de DDL, parsing des en-têtes de fichiers SQL, lecture et écriture des manifestes et snapshots. Tests d'intégration provider avec Testcontainers (SQL Server en conteneur) ; ils sont ignorés automatiquement si Docker n'est pas disponible, et leur exécution en CI est prise en charge par l'utilisateur.
 - Structure de la solution :
 
 ```
