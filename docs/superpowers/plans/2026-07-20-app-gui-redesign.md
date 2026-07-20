@@ -94,7 +94,7 @@ Replace the contents of `src/SmartIndexManager.App/App.axaml` with:
              x:Class="SmartIndexManager.App.App"
              RequestedThemeVariant="Default">
     <Application.Styles>
-        <semi:SemiTheme Locale="en-US" />
+        <semi:SemiTheme />
         <mi:MaterialIconStyles />
     </Application.Styles>
     <Application.Resources>
@@ -107,7 +107,7 @@ Replace the contents of `src/SmartIndexManager.App/App.axaml` with:
 </Application>
 ```
 
-Note: the exact `Semi.Avalonia` include element/namespace, the `Locale` attribute, and Semi resource keys (such as the border brush used in Task 13) are package-specific API surface that differs across versions. Before finishing this task, open the installed `Semi.Avalonia` package README (or its `nupkg` `Themes` folder) and confirm: (a) the exact `SemiTheme`/`StyleInclude` line and whether `Locale` is supported, and (b) the border brush resource key you will reference in Task 13 (commonly `SemiColorBorder`). Record the confirmed border key in a comment in `Tokens.axaml` so Task 13 does not rediscover it. This is a third-party integration point verified by the build, not a design choice.
+Note: the exact `Semi.Avalonia` include element/namespace and Semi resource keys (such as the border brush used in Task 13) are package-specific API surface that differs across versions. Before finishing this task, open the installed `Semi.Avalonia` package README (or its `nupkg` `Themes` folder) and confirm: (a) the exact `SemiTheme`/`StyleInclude` line, and (b) the border brush resource key you will reference in Task 13 (commonly `SemiColorBorder`). Add a `Locale` attribute to `SemiTheme` only if the package README documents one. Record the confirmed border key in a comment in `Tokens.axaml` so Task 13 does not rediscover it. This is a third-party integration point verified by the build, not a design choice.
 
 - [ ] **Step 4: Build to verify the theme wires up**
 
@@ -612,7 +612,13 @@ public class ConnectionSessionViewModelTests : IDisposable
         public Task ShowConnectionManagerAsync(ConnectionManagerViewModel vm) { ShownCount++; return Task.CompletedTask; }
     }
 
-    private (ConnectionSessionViewModel vm, RecordingDialogs dialogs) Build()
+    private sealed class ThrowingFactory : IIndexProviderFactory
+    {
+        public Task<IIndexProvider> ConnectAsync(ConnectionRequest request, string? password, CancellationToken ct = default)
+            => throw new InvalidOperationException("connection refused");
+    }
+
+    private (ConnectionSessionViewModel vm, RecordingDialogs dialogs) Build(string? password = "pw")
     {
         var paths = new AppPaths(_dir, _dir, _dir);
         var store = new ConnectionStore(paths);
@@ -631,8 +637,24 @@ public class ConnectionSessionViewModelTests : IDisposable
         var dialogs = new RecordingDialogs();
         var vm = new ConnectionSessionViewModel(
             new IndexLoadService(new FakeIndexProviderFactory(provider), paths),
-            new StubPrompt("pw"), connections, dialogs, new ResxLocalizer());
+            new StubPrompt(password), connections, dialogs, new ResxLocalizer());
         return (vm, dialogs);
+    }
+
+    private ConnectionSessionViewModel BuildFailing()
+    {
+        var paths = new AppPaths(_dir, _dir, _dir);
+        var store = new ConnectionStore(paths);
+        var connections = new ConnectionManagerViewModel(store, new AuthAvailability(new ResxLocalizer(), true, false))
+        {
+            Selected = new ConnectionProfile { Name = "prod", Server = "PROD01", Auth = AuthMode.SqlLogin, Login = "app" },
+            DatabasesText = "Sales"
+        };
+        var dialogs = new RecordingDialogs();
+        var vm = new ConnectionSessionViewModel(
+            new IndexLoadService(new ThrowingFactory(), paths),
+            new StubPrompt("pw"), connections, dialogs, new ResxLocalizer());
+        return vm;
     }
 
     [Fact]
@@ -671,6 +693,24 @@ public class ConnectionSessionViewModelTests : IDisposable
         var (vm, dialogs) = Build();
         await vm.ManageCommand.ExecuteAsync(null);
         Assert.Equal(1, dialogs.ShownCount);
+    }
+
+    [Fact]
+    public async Task Connect_does_nothing_when_the_password_prompt_is_cancelled()
+    {
+        var (vm, _) = Build(password: null);
+        await vm.ConnectCommand.ExecuteAsync(null);
+        Assert.False(vm.IsConnected);
+        Assert.Null(vm.ActiveProvider);
+    }
+
+    [Fact]
+    public async Task Connect_sets_error_status_and_clears_busy_on_failure()
+    {
+        var vm = BuildFailing();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        Assert.Equal(Strings.Connection_Error, vm.StatusMessage);
+        Assert.False(vm.IsBusy);
     }
 }
 ```
@@ -1118,7 +1158,7 @@ git commit -m "feat(app): ShellViewModel with navigation, theme, and connection 
 - Modify: `src/SmartIndexManager.App/Localization/Strings.Designer.cs`
 
 **Interfaces:**
-- Produces these NEW resource keys: `Nav_Browse`, `Nav_Basket`, `Nav_Restore`, `Nav_Audit`, `Nav_Settings`, `Placeholder_Message`, `Connection_Disconnect`, `Connection_Manage`, `Connection_Prompt`, `Grid_MatchCount`, `Detail_Empty`, `Detail_Copy`, `Detail_Section_Structure`, `Detail_Section_Usage`, `Detail_Section_ProviderProps`.
+- Produces these NEW resource keys: `Nav_Browse`, `Nav_Basket`, `Nav_Restore`, `Nav_Audit`, `Nav_Settings`, `Placeholder_Message`, `Connection_Disconnect`, `Connection_Manage`, `Connection_Prompt`, `Grid_MatchCount`, `Grid_EmptyTitle`, `Grid_EmptyMessage`, `Grid_NoMatchesTitle`, `Grid_NoMatchesMessage`, `Grid_ClearFilter`, `Detail_Empty`, `Detail_Copy`, `Detail_Section_Structure`, `Detail_Section_Usage`, `Detail_Section_ProviderProps`.
 - REUSES these keys that already exist in `Strings.resx` (verified present; do not re-add): `App_Title`, `Action_Connect`, `Action_Cancel`, `Action_ToggleTheme`, `Connection_DatabasesWatermark`, `Connection_Title`, `Connection_Error`, `Grid_Filter`, `Grid_Column_Database/Schema/Table/Index/Type/SizeMb/Seeks/Scans/Updates/Score`, `Badge_NotDeletable/Redundant/ForeignKey/Hint`, `Detail_Ddl`, `Detail_ScoreFactors`, `Detail_Error`, `Detail_OldestSnapshot`. The Connect button reuses `Action_Connect`; the DDL card title reuses `Detail_Ddl`; the score card title reuses `Detail_ScoreFactors`.
 
 - [ ] **Step 1: Add the new resx entries**
@@ -1136,6 +1176,11 @@ In `src/SmartIndexManager.App/Localization/Strings.resx`, add one `<data>` eleme
 <data name="Connection_Manage" xml:space="preserve"><value>Manage…</value></data>
 <data name="Connection_Prompt" xml:space="preserve"><value>Connect to a server to browse indexes.</value></data>
 <data name="Grid_MatchCount" xml:space="preserve"><value>{0} of {1} indexes</value></data>
+<data name="Grid_EmptyTitle" xml:space="preserve"><value>No indexes</value></data>
+<data name="Grid_EmptyMessage" xml:space="preserve"><value>Connect to a server to browse indexes.</value></data>
+<data name="Grid_NoMatchesTitle" xml:space="preserve"><value>No matches</value></data>
+<data name="Grid_NoMatchesMessage" xml:space="preserve"><value>No index matches the current filter.</value></data>
+<data name="Grid_ClearFilter" xml:space="preserve"><value>Clear filter</value></data>
 <data name="Detail_Empty" xml:space="preserve"><value>Select an index to see its details.</value></data>
 <data name="Detail_Copy" xml:space="preserve"><value>Copy</value></data>
 <data name="Detail_Section_Structure" xml:space="preserve"><value>Structure</value></data>
@@ -1260,13 +1305,34 @@ public void MatchCountText_reflects_filter_and_total()
 
     vm.FilterText = "HR";
     Assert.Equal("1 of 3", vm.MatchCountText);
+
+    vm.FilterText = "";
+    Assert.Equal("3 of 3", vm.MatchCountText);
+}
+
+[Fact]
+public void Filter_flags_and_clear_command_reset_filter()
+{
+    var vm = new IndexGridViewModel();
+    vm.SetRows([Row("AAA"), Row("BBB"), Row("HR_legacy")]);
+    Assert.False(vm.IsFiltered);
+    Assert.True(vm.HasVisibleRows);
+
+    vm.FilterText = "ZZZ";
+    Assert.True(vm.IsFiltered);
+    Assert.False(vm.HasVisibleRows);
+
+    vm.ClearFilterCommand.Execute(null);
+    Assert.Equal("", vm.FilterText);
+    Assert.False(vm.IsFiltered);
+    Assert.True(vm.HasVisibleRows);
 }
 ```
 
-Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~IndexGridViewModelTests.MatchCountText"`
+Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~IndexGridViewModelTests.MatchCountText|FullyQualifiedName~IndexGridViewModelTests.Filter_flags"`
 Expected: FAIL (`TotalCount`/`MatchCountText` do not exist).
 
-Then edit `src/SmartIndexManager.App/ViewModels/IndexGridViewModel.cs`: add `using SmartIndexManager.App.Localization;`, replace the constructor, `SetRows`, and `OnFilterTextChanged` with the versions below, and add the new members:
+Then edit `src/SmartIndexManager.App/ViewModels/IndexGridViewModel.cs`: add `using SmartIndexManager.App.Localization;` and `using CommunityToolkit.Mvvm.Input;`, replace the constructor, `SetRows`, and `OnFilterTextChanged` with the versions below, and add the new members:
 
 ```csharp
     private readonly ILocalizer? _loc;
@@ -1282,6 +1348,13 @@ Then edit `src/SmartIndexManager.App/ViewModels/IndexGridViewModel.cs`: add `usi
     public string MatchCountText => _loc is not null
         ? string.Format(_loc["Grid_MatchCount"], VisibleCount, TotalCount)
         : $"{VisibleCount} of {TotalCount}";
+
+    public bool IsFiltered => FilterText.Length > 0;
+
+    public bool HasVisibleRows => VisibleCount > 0;
+
+    [RelayCommand]
+    private void ClearFilter() => FilterText = "";
 
     public void SetRows(IReadOnlyList<IndexRowViewModel> rows)
     {
@@ -1302,6 +1375,8 @@ Then edit `src/SmartIndexManager.App/ViewModels/IndexGridViewModel.cs`: add `usi
         OnPropertyChanged(nameof(VisibleCount));
         OnPropertyChanged(nameof(TotalCount));
         OnPropertyChanged(nameof(MatchCountText));
+        OnPropertyChanged(nameof(IsFiltered));
+        OnPropertyChanged(nameof(HasVisibleRows));
     }
 ```
 
@@ -1461,6 +1536,24 @@ Create `src/SmartIndexManager.App/Views/BrowseView.axaml`. This folds in the old
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+
+                <!-- Empty results state (no rows at all, or filter with no matches) -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                            IsVisible="{Binding !Grid.HasVisibleRows}">
+                    <StackPanel IsVisible="{Binding Grid.IsFiltered}">
+                        <mi:MaterialIcon Kind="FileSearchOutline" Width="48" Height="48" Opacity="0.6" HorizontalAlignment="Center" />
+                        <TextBlock Classes="title" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_NoMatchesTitle}" />
+                        <TextBlock Classes="caption" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_NoMatchesMessage}" />
+                        <Button HorizontalAlignment="Center" Margin="0,4,0,0"
+                                Content="{x:Static loc:Strings.Grid_ClearFilter}"
+                                Command="{Binding Grid.ClearFilterCommand}" />
+                    </StackPanel>
+                    <StackPanel IsVisible="{Binding !Grid.IsFiltered}">
+                        <mi:MaterialIcon Kind="DatabaseOffOutline" Width="48" Height="48" Opacity="0.6" HorizontalAlignment="Center" />
+                        <TextBlock Classes="title" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_EmptyTitle}" />
+                        <TextBlock Classes="caption" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_EmptyMessage}" />
+                    </StackPanel>
+                </StackPanel>
             </DockPanel>
             <GridSplitter Grid.Column="1" Width="4" />
             <Panel Grid.Column="2">
