@@ -15,4 +15,8 @@ public interface ISqlExecutor : IAsyncDisposable
     // Runs a mutating statement (DROP, ALTER). timeout null uses the connection default.
     Task<int> ExecuteAsync(
         string sql, IReadOnlyDictionary<string, object?>? parameters, TimeSpan? timeout, CancellationToken cancellationToken);
+
+    // Switches the connection's active database. Validates against sys.databases first,
+    // then delegates to the driver's own ChangeDatabase (no identifier concatenation).
+    Task ChangeDatabaseAsync(string database, CancellationToken cancellationToken);
 }

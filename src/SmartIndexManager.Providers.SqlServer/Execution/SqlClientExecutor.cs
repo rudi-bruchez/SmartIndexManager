@@ -47,6 +47,17 @@ public sealed class SqlClientExecutor : ISqlExecutor
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task ChangeDatabaseAsync(string database, CancellationToken cancellationToken)
+    {
+        // Validate against the catalog, then use the driver's own ChangeDatabase (no SQL injection surface).
+        await using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM sys.databases WHERE name = @db;";
+        cmd.Parameters.Add(new SqlParameter("@db", database));
+        var exists = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        if (exists is null) throw new InvalidOperationException($"unknown database: {database}");
+        await _connection.ChangeDatabaseAsync(database, cancellationToken).ConfigureAwait(false);
+    }
+
     private SqlCommand CreateCommand(string sql, IReadOnlyDictionary<string, object?>? parameters, TimeSpan? timeout)
     {
         var cmd = _connection.CreateCommand();
