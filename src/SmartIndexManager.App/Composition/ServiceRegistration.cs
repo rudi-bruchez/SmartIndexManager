@@ -13,6 +13,7 @@ public static class ServiceRegistration
     {
         services.AddSqlServerProvider(scriptRoot);
         services.AddSingleton<IAppPaths>(_ => AppPaths.Default());
+        services.AddSingleton<IConnectionStore, ConnectionStore>();
         services.AddSingleton<ILocalizer, ResxLocalizer>();
         return services;
     }
