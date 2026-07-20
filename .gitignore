@@ -47,6 +47,17 @@ ScaffoldingReadMe.txt
 *~
 CodeCoverage/
 
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Agent tooling artifacts
+.superpowers/
+.claude/
+
 # MSBuild Binary and Structured Log
 *.binlog
 
