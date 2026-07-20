@@ -16,7 +16,9 @@ public sealed class SqlClientExecutor : ISqlExecutor
         await using var cmd = CreateCommand(script.Sql, parameters, timeout: null);
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-        ValidateColumns(script, reader);
+        var columns = new string[reader.FieldCount];
+        for (int i = 0; i < reader.FieldCount; i++) columns[i] = reader.GetName(i);
+        ValidateColumns(script, columns);
 
         var rows = new List<SqlRow>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -69,11 +71,9 @@ public sealed class SqlClientExecutor : ISqlExecutor
         return cmd;
     }
 
-    private static void ValidateColumns(SqlScript script, SqlDataReader reader)
+    internal static void ValidateColumns(SqlScript script, IReadOnlyCollection<string> presentColumns)
     {
-        var present = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        for (int i = 0; i < reader.FieldCount; i++) present.Add(reader.GetName(i));
-
+        var present = new HashSet<string>(presentColumns, StringComparer.OrdinalIgnoreCase);
         var missing = script.ExpectedColumns.Where(c => !present.Contains(c)).ToList();
         if (missing.Count > 0)
             throw new InvalidOperationException(
