@@ -20,6 +20,11 @@ public class ScriptContractTests
     [InlineData("querystore-state", new[] { "ActualState" })]
     [InlineData("index-columns", new[] { "ObjectId", "IndexId", "ColumnName", "KeyOrdinal", "IsIncluded", "IsDescending" })]
     [InlineData("fk-support", new[] { "ObjectId", "IndexId" })]
+    [InlineData("index-used-by-queries", new[] { "QueryText", "ExecutionCount", "LastExecutionUtc" })]
+    [InlineData("index-used-by-queries-query-store", new[] { "QueryText", "ExecutionCount", "LastExecutionUtc" })]
+    [InlineData("index-hints-plancache", new[] { "Reference", "Kind" })]
+    [InlineData("replication-ag-check", new[] { "InReplicationOrAg" })]
+    [InlineData("querystore-enable", new[] { "Applied" })]
     public void Script_ships_and_declares_expected_columns(string name, string[] expected)
     {
         var script = SqlScriptLoader.Load(ScriptRoot(), name);
