@@ -148,6 +148,9 @@
   <data name="Connection_Error" xml:space="preserve">
     <value>Connection failed</value>
   </data>
+  <data name="Detail_Error" xml:space="preserve">
+    <value>Failed to load detail</value>
+  </data>
   <data name="Auth_WindowsIntegratedUnavailable" xml:space="preserve">
     <value>Windows Integrated authentication needs Windows or a Kerberos-configured host. Use SQL or Entra ID instead.</value>
   </data>

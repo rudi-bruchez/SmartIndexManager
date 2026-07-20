@@ -33,6 +33,16 @@ public class ConnectionStoreTests : IDisposable
         => Assert.Empty(Store().Load());
 
     [Fact]
+    public void Load_returns_empty_when_file_contains_invalid_json()
+    {
+        var path = Path.Combine(_dir, "connections.json");
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(path, "not valid json");
+
+        Assert.Empty(Store().Load());
+    }
+
+    [Fact]
     public void Persisted_json_never_contains_a_password_property()
     {
         Store().Save(new[] { new ConnectionProfile { Name = "p", Server = "s", Auth = AuthMode.SqlLogin, Login = "u" } });

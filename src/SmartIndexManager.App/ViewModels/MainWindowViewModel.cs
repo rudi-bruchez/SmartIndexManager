@@ -63,6 +63,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         if (profile.Auth == AuthMode.SqlLogin && password is null) return;   // cancelled
 
         await StopDetailWorkAsync().ConfigureAwait(true);
+        Detail = null;
 
         _cts = new CancellationTokenSource();
         IsBusy = true;
@@ -106,6 +107,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             await _detailTask.ConfigureAwait(true);
         }
         catch (OperationCanceledException) { }
+        catch (Exception)
+        {
+            StatusMessage = _loc["Detail_Error"];
+        }
     }
 
     private async Task StopDetailWorkAsync()

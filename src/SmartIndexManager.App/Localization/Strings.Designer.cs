@@ -331,6 +331,15 @@ namespace SmartIndexManager.App.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Failed to load detail.
+        /// </summary>
+        public static string Detail_Error {
+            get {
+                return ResourceManager.GetString("Detail_Error", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Windows Integrated authentication needs Windows or a Kerberos-configured host. Use SQL or Entra ID instead..
         /// </summary>
         public static string Auth_WindowsIntegratedUnavailable {

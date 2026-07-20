@@ -1,3 +1,4 @@
+using System.Linq;
 using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.App.Tests.Fakes;
@@ -15,6 +16,12 @@ public class MainWindowViewModelTests : IDisposable
     private sealed class StubPrompt(string? password) : IPasswordPrompt
     {
         public Task<string?> RequestAsync(string name, CancellationToken ct) => Task.FromResult(password);
+    }
+
+    private sealed class ThrowingFactory : IIndexProviderFactory
+    {
+        public Task<IIndexProvider> ConnectAsync(ConnectionRequest request, string? password, CancellationToken ct = default)
+            => throw new InvalidOperationException("connection refused");
     }
 
     private MainWindowViewModel Build(string? password)
@@ -44,6 +51,25 @@ public class MainWindowViewModelTests : IDisposable
             new ResxLocalizer());
     }
 
+    private MainWindowViewModel BuildFailing()
+    {
+        var paths = new AppPaths(_dir, _dir, _dir);
+        var store = new ConnectionStore(paths);
+        store.Save([new ConnectionProfile { Name = "prod", Server = "PROD01", Auth = AuthMode.SqlLogin, Login = "app" }]);
+
+        var connections = new ConnectionManagerViewModel(store, new AuthAvailability(new ResxLocalizer(), true, false))
+        {
+            Selected = new ConnectionProfile { Name = "prod", Server = "PROD01", Auth = AuthMode.SqlLogin, Login = "app" },
+            DatabasesText = "Sales"
+        };
+        return new MainWindowViewModel(
+            new IndexLoadService(new ThrowingFactory(), paths),
+            new StubPrompt("pw"), connections, new IndexGridViewModel(),
+            new PermissionStatusViewModel(new ResxLocalizer()),
+            paths,
+            new ResxLocalizer());
+    }
+
     [Fact]
     public async Task Connect_loads_rows_into_the_grid_and_updates_permissions()
     {
@@ -61,5 +87,33 @@ public class MainWindowViewModelTests : IDisposable
         var vm = Build(password: null);
         await vm.ConnectCommand.ExecuteAsync(null);
         Assert.Equal(0, vm.Grid.VisibleCount);
+    }
+
+    [Fact]
+    public async Task Connect_sets_error_status_and_clears_busy_on_failure()
+    {
+        var vm = BuildFailing();
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal(Strings.Connection_Error, vm.StatusMessage);
+        Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task Rapid_selection_changes_do_not_crash()
+    {
+        var vm = Build(password: "pw");
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        Assert.NotNull(vm.Detail);
+        var rows = vm.Grid.View.Cast<IndexRowViewModel>().ToList();
+        Assert.True(rows.Count >= 1);
+
+        var first = Record.Exception(() => vm.Grid.SelectedRow = rows[0]);
+        Assert.Null(first);
+        var second = Record.Exception(() => vm.Grid.SelectedRow = rows[0]);
+        Assert.Null(second);
+
+        await Task.Delay(50);
     }
 }
