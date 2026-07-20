@@ -26,4 +26,11 @@
     <ProjectReference Include="..\SmartIndexManager.Core\SmartIndexManager.Core.csproj" />
     <ProjectReference Include="..\SmartIndexManager.Providers.SqlServer\SmartIndexManager.Providers.SqlServer.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Localization\Strings.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenNamespace>SmartIndexManager.App.Localization</LastGenNamespace>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>

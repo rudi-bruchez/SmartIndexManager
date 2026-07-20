@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.Providers.SqlServer;
 
@@ -12,6 +13,7 @@ public static class ServiceRegistration
     {
         services.AddSqlServerProvider(scriptRoot);
         services.AddSingleton<IAppPaths>(_ => AppPaths.Default());
+        services.AddSingleton<ILocalizer, ResxLocalizer>();
         return services;
     }
 }
