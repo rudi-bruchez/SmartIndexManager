@@ -145,4 +145,10 @@
   <data name="Detail_OldestSnapshot" xml:space="preserve">
     <value>Observed since {0}</value>
   </data>
+  <data name="Connection_Error" xml:space="preserve">
+    <value>Connection failed</value>
+  </data>
+  <data name="Auth_WindowsIntegratedUnavailable" xml:space="preserve">
+    <value>Windows Integrated authentication needs Windows or a Kerberos-configured host. Use SQL or Entra ID instead.</value>
+  </data>
 </root>

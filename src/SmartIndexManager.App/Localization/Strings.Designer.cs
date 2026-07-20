@@ -320,5 +320,23 @@ namespace SmartIndexManager.App.Localization {
                 return ResourceManager.GetString("Detail_OldestSnapshot", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connection failed.
+        /// </summary>
+        public static string Connection_Error {
+            get {
+                return ResourceManager.GetString("Connection_Error", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Windows Integrated authentication needs Windows or a Kerberos-configured host. Use SQL or Entra ID instead..
+        /// </summary>
+        public static string Auth_WindowsIntegratedUnavailable {
+            get {
+                return ResourceManager.GetString("Auth_WindowsIntegratedUnavailable", resourceCulture);
+            }
+        }
     }
 }

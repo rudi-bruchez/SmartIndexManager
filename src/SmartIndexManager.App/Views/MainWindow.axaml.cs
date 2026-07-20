@@ -10,6 +10,12 @@ public partial class MainWindow : Window
     {
         base.OnClosed(e);
         if (DataContext is IAsyncDisposable disposable)
-            await disposable.DisposeAsync().ConfigureAwait(true);
+        {
+            try
+            {
+                await disposable.DisposeAsync().ConfigureAwait(true);
+            }
+            catch { }
+        }
     }
 }

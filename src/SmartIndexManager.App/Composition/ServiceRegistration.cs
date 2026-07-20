@@ -16,7 +16,7 @@ public static class ServiceRegistration
         services.AddSingleton<IAppPaths>(_ => AppPaths.Default());
         services.AddSingleton<IConnectionStore, ConnectionStore>();
         services.AddSingleton<ILocalizer, ResxLocalizer>();
-        services.AddSingleton<IAuthAvailability>(_ => AuthAvailability.ForCurrentOs());
+        services.AddSingleton<IAuthAvailability>(sp => AuthAvailability.ForCurrentOs(sp.GetRequiredService<ILocalizer>()));
         services.AddSingleton<IIndexLoadService, IndexLoadService>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddTransient<ConnectionManagerViewModel>();

@@ -1,3 +1,4 @@
+using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.App.ViewModels;
 using SmartIndexManager.Core.Provider;
@@ -10,7 +11,7 @@ public class ConnectionManagerViewModelTests : IDisposable
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
     private ConnectionManagerViewModel Vm()
-        => new(new ConnectionStore(new AppPaths(_dir, _dir, _dir)), new AuthAvailability(true, false));
+        => new(new ConnectionStore(new AppPaths(_dir, _dir, _dir)), new AuthAvailability(new ResxLocalizer(), true, false));
 
     [Fact]
     public void Loads_persisted_profiles_on_construction()

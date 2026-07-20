@@ -14,6 +14,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly ILocalizer _loc;
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _detailCts;
+    private Task? _detailTask;
     private IIndexProvider? _provider;
     private IndexDetailViewModel? _detail;
 
@@ -61,9 +62,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             : null;
         if (profile.Auth == AuthMode.SqlLogin && password is null) return;   // cancelled
 
-        _detailCts?.Cancel();
-        _detailCts?.Dispose();
-        _detailCts = null;
+        await StopDetailWorkAsync().ConfigureAwait(true);
 
         _cts = new CancellationTokenSource();
         IsBusy = true;
@@ -76,12 +75,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             _provider = result.Provider;
             Detail = new IndexDetailViewModel(_provider, _paths, _loc);
             Grid.SetRows(result.Rows);
-            Permissions.Update(result.Permissions, result.Capabilities);
+            Permissions.Update(result.Permissions);
             StatusMessage = result.Server.ServerName;
         }
         catch (OperationCanceledException)
         {
             StatusMessage = _loc["Action_Cancel"];
+        }
+        catch (Exception)
+        {
+            StatusMessage = _loc["Connection_Error"];
         }
         finally
         {
@@ -94,20 +97,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     public async Task ShowDetailAsync(IndexRowViewModel? row)
     {
         if (row is null || Detail is null) return;
-
         _detailCts?.Cancel();
-        _detailCts?.Dispose();
-        _detailCts = new CancellationTokenSource();
-
+        var cts = new CancellationTokenSource();
+        _detailCts = cts;
+        _detailTask = Detail.ShowAsync(row, cts.Token);
         try
         {
-            await Detail.ShowAsync(row, _detailCts.Token).ConfigureAwait(true);
+            await _detailTask.ConfigureAwait(true);
         }
-        finally
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task StopDetailWorkAsync()
+    {
+        _detailCts?.Cancel();
+        if (_detailTask is not null)
         {
-            _detailCts.Dispose();
-            _detailCts = null;
+            try { await _detailTask.ConfigureAwait(true); }
+            catch (OperationCanceledException) { }
+            catch { }
         }
+        _detailCts?.Dispose();
+        _detailCts = null;
+        _detailTask = null;
     }
 
     private async Task DisposeCurrentProviderAsync()
@@ -122,9 +134,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public async ValueTask DisposeAsync()
     {
+        await StopDetailWorkAsync().ConfigureAwait(true);
         await DisposeCurrentProviderAsync().ConfigureAwait(true);
-        _detailCts?.Cancel();
-        _detailCts?.Dispose();
-        _detailCts = null;
     }
 }

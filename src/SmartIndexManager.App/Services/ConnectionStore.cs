@@ -19,8 +19,15 @@ public sealed class ConnectionStore : IConnectionStore
     public IReadOnlyList<ConnectionProfile> Load()
     {
         if (!File.Exists(_path)) return [];
-        var json = File.ReadAllText(_path);
-        return JsonSerializer.Deserialize<List<ConnectionProfile>>(json, Options) ?? [];
+        try
+        {
+            var json = File.ReadAllText(_path);
+            return JsonSerializer.Deserialize<List<ConnectionProfile>>(json, Options) ?? [];
+        }
+        catch (Exception)
+        {
+            return [];
+        }
     }
 
     public void Save(IReadOnlyList<ConnectionProfile> profiles)

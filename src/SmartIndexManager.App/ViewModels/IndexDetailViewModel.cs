@@ -31,9 +31,6 @@ public sealed partial class IndexDetailViewModel : ViewModelBase
 
     public async Task ShowAsync(IndexRowViewModel row, CancellationToken cancellationToken)
     {
-        if (_provider is null)
-            throw new InvalidOperationException("Provider must be set before showing detail.");
-
         var index = row.Index;
 
         Ddl = SqlServerDdlGenerator.Generate(index) switch

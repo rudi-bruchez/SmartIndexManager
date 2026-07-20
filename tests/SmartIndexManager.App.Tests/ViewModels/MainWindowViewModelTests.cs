@@ -30,7 +30,7 @@ public class MainWindowViewModelTests : IDisposable
         var store = new ConnectionStore(paths);
         store.Save([new ConnectionProfile { Name = "prod", Server = "PROD01", Auth = AuthMode.SqlLogin, Login = "app" }]);
 
-        var connections = new ConnectionManagerViewModel(store, new AuthAvailability(true, false))
+        var connections = new ConnectionManagerViewModel(store, new AuthAvailability(new ResxLocalizer(), true, false))
         {
             Selected = new ConnectionProfile { Name = "prod", Server = "PROD01", Auth = AuthMode.SqlLogin, Login = "app" },
             DatabasesText = "Sales"

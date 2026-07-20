@@ -40,7 +40,9 @@ public sealed partial class ConnectionManagerViewModel : ViewModelBase
         {
             Name = name,
             Server = "",
-            Auth = AuthMode.WindowsIntegrated,
+            Auth = _auth.IsAvailable(AuthMode.WindowsIntegrated)
+                ? AuthMode.WindowsIntegrated
+                : AuthMode.SqlLogin,
         };
         Profiles.Add(profile);
         Selected = profile;

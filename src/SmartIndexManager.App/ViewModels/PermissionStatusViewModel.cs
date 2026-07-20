@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using SmartIndexManager.App.Localization;
-using SmartIndexManager.Core.Model;
 using SmartIndexManager.Core.Provider;
 
 namespace SmartIndexManager.App.ViewModels;
@@ -16,7 +15,7 @@ public sealed partial class PermissionStatusViewModel : ViewModelBase
 
     public PermissionStatusViewModel(ILocalizer loc) => _loc = loc;
 
-    public void Update(PermissionReport permissions, ProviderCapabilities capabilities)
+    public void Update(PermissionReport permissions)
     {
         var messages = new List<string>();
         UsageAvailable = permissions.CanViewState;
