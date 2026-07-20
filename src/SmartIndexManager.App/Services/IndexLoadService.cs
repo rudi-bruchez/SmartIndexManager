@@ -28,47 +28,55 @@ public sealed class IndexLoadService : IIndexLoadService
         var request = ToRequest(profile);
         var provider = await _factory.ConnectAsync(request, password, cancellationToken).ConfigureAwait(false);
 
-        var indexes = await provider.GetIndexesAsync(databases, cancellationToken).ConfigureAwait(false);
-
-        WriteSnapshot(provider.ServerInfo, databases, indexes);
-
-        var redundant = new HashSet<(string, string, string, string)>();
-        foreach (var f in RedundancyAnalyzer.Analyze(indexes))
+        try
         {
-            redundant.Add(Key(f.Redundant));
-            redundant.Add(Key(f.CoveredBy));
-        }
+            var indexes = await provider.GetIndexesAsync(databases, cancellationToken).ConfigureAwait(false);
 
-        int uptime = Math.Max(0, provider.ServerInfo.UptimeDays);
-        var rows = new List<IndexRowViewModel>(indexes.Count);
-        foreach (var index in indexes)
-        {
-            bool isRedundant = redundant.Contains(Key(index));
-            bool fkSupport = index.ProviderProperties.ContainsKey("fkSupport");
+            WriteSnapshot(provider.ServerInfo, databases, indexes);
 
-            var safety = DeletionSafetyEvaluator.Evaluate(new SafetyInputs
+            var redundant = new HashSet<(string, string, string, string)>();
+            foreach (var f in RedundancyAnalyzer.Analyze(indexes))
             {
-                Index = index,
-                Ddl = SqlServerDdlGenerator.Generate(index),
-                SupportsForeignKey = fkSupport,
-                InstanceUptimeDays = uptime
-            });
+                redundant.Add(Key(f.Redundant));
+                redundant.Add(Key(f.CoveredBy));
+            }
 
-            ConfidenceScore? score = safety.Eligibility == DeletionEligibility.Deletable
-                ? _scorer.Score(new ScoreInputs
+            int uptime = Math.Max(0, provider.ServerInfo.UptimeDays);
+            var rows = new List<IndexRowViewModel>(indexes.Count);
+            foreach (var index in indexes)
+            {
+                bool isRedundant = redundant.Contains(Key(index));
+                bool fkSupport = index.ProviderProperties.ContainsKey("fkSupport");
+
+                var safety = DeletionSafetyEvaluator.Evaluate(new SafetyInputs
                 {
                     Index = index,
-                    InstanceUptimeDays = uptime,
-                    IsRedundant = isRedundant,
+                    Ddl = SqlServerDdlGenerator.Generate(index),
                     SupportsForeignKey = fkSupport,
-                    NowUtc = DateTime.UtcNow
-                })
-                : null;
+                    InstanceUptimeDays = uptime
+                });
 
-            rows.Add(new IndexRowViewModel(index, score, safety, isRedundant, isReferencedByHint: false));
+                ConfidenceScore? score = safety.Eligibility == DeletionEligibility.Deletable
+                    ? _scorer.Score(new ScoreInputs
+                    {
+                        Index = index,
+                        InstanceUptimeDays = uptime,
+                        IsRedundant = isRedundant,
+                        SupportsForeignKey = fkSupport,
+                        NowUtc = DateTime.UtcNow
+                    })
+                    : null;
+
+                rows.Add(new IndexRowViewModel(index, score, safety, isRedundant, isReferencedByHint: false));
+            }
+
+            return new LoadResult(provider, provider.ServerInfo, provider.Capabilities, provider.Permissions, rows);
         }
-
-        return new LoadResult(provider, provider.ServerInfo, provider.Capabilities, provider.Permissions, rows);
+        catch
+        {
+            await provider.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     private void WriteSnapshot(ServerInfo server, IReadOnlyList<string> databases, IReadOnlyList<IndexModel> indexes)

@@ -6,13 +6,14 @@ using SmartIndexManager.Core.Provider;
 
 namespace SmartIndexManager.App.ViewModels;
 
-public sealed partial class MainWindowViewModel : ViewModelBase
+public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly IIndexLoadService _load;
     private readonly IPasswordPrompt _prompt;
     private readonly IAppPaths _paths;
     private readonly ILocalizer _loc;
     private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _detailCts;
     private IIndexProvider? _provider;
     private IndexDetailViewModel? _detail;
 
@@ -60,6 +61,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             : null;
         if (profile.Auth == AuthMode.SqlLogin && password is null) return;   // cancelled
 
+        _detailCts?.Cancel();
+        _detailCts?.Dispose();
+        _detailCts = null;
+
         _cts = new CancellationTokenSource();
         IsBusy = true;
         StatusMessage = _loc["Action_Connect"];
@@ -89,7 +94,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public async Task ShowDetailAsync(IndexRowViewModel? row)
     {
         if (row is null || Detail is null) return;
-        await Detail.ShowAsync(row, CancellationToken.None).ConfigureAwait(true);
+
+        _detailCts?.Cancel();
+        _detailCts?.Dispose();
+        _detailCts = new CancellationTokenSource();
+
+        try
+        {
+            await Detail.ShowAsync(row, _detailCts.Token).ConfigureAwait(true);
+        }
+        finally
+        {
+            _detailCts.Dispose();
+            _detailCts = null;
+        }
     }
 
     private async Task DisposeCurrentProviderAsync()
@@ -102,9 +120,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void Cancel() => _cts?.Cancel();
 
-    private static ConnectionRequest ToRequest(ConnectionProfile p) => new()
+    public async ValueTask DisposeAsync()
     {
-        Server = p.Server, Port = p.Port, Auth = p.Auth, Login = p.Login,
-        Encrypt = p.Encrypt, TrustServerCertificate = p.TrustServerCertificate
-    };
+        await DisposeCurrentProviderAsync().ConfigureAwait(true);
+        _detailCts?.Cancel();
+        _detailCts?.Dispose();
+        _detailCts = null;
+    }
 }

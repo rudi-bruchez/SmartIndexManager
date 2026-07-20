@@ -88,24 +88,6 @@ namespace SmartIndexManager.App.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Add.
-        /// </summary>
-        public static string Action_Add {
-            get {
-                return ResourceManager.GetString("Action_Add", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Save.
-        /// </summary>
-        public static string Action_Save {
-            get {
-                return ResourceManager.GetString("Action_Save", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to SmartIndexManager.
         /// </summary>
         public static string App_Title {

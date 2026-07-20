@@ -12,14 +12,12 @@ namespace SmartIndexManager.App;
 
 public partial class App : Application
 {
-    public IServiceProvider? Services { get; private set; }
-
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
     {
         var paths = AppPaths.Default();
-        Services = new ServiceCollection()
+        var services = new ServiceCollection()
             .AddAppServices(paths.SqlScriptRoot)
             // The real password prompt (a dialog) is added in Task 3b; for read-only browsing
             // register a console-less prompt that returns null so SqlLogin connects are gated in the UI.
@@ -28,9 +26,9 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var theme = Services.GetRequiredService<IThemeService>();
+            var theme = services.GetRequiredService<IThemeService>();
             RequestedThemeVariant = theme.Current == ThemeVariantKind.Dark ? ThemeVariant.Dark : ThemeVariant.Light;
-            desktop.MainWindow = new MainWindow { DataContext = Services.GetRequiredService<MainWindowViewModel>() };
+            desktop.MainWindow = new MainWindow { DataContext = services.GetRequiredService<MainWindowViewModel>() };
         }
         base.OnFrameworkInitializationCompleted();
     }

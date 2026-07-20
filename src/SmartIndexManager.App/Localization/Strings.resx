@@ -67,12 +67,6 @@
   <data name="Action_Refresh" xml:space="preserve">
     <value>Refresh</value>
   </data>
-  <data name="Action_Add" xml:space="preserve">
-    <value>Add</value>
-  </data>
-  <data name="Action_Save" xml:space="preserve">
-    <value>Save</value>
-  </data>
   <data name="App_Title" xml:space="preserve">
     <value>SmartIndexManager</value>
   </data>
