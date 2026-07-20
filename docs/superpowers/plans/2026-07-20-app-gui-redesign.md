@@ -23,6 +23,7 @@
 1. Score-pill colour uses Avalonia class-binding (`Classes.score-safe="{Binding IsScoreSafe}"`) plus `DynamicResource` brushes, not a `ScoreColorToClassConverter`. Same theme-reactivity; the tested unit is three bools on `IndexRowViewModel`. Numeric formatting uses binding `StringFormat`, so no numeric converter is needed either.
 2. `MainWindowViewModel` is not renamed in place. The new VMs are added alongside it and a single cutover task (Task 13) switches wiring and deletes the old VM, so the build stays green at every task.
 3. The four placeholder destinations share one `PlaceholderPageViewModel` type (four configured instances) instead of four empty classes (YAGNI). Each real feature later replaces its instance with a dedicated VM and `DataTemplate`.
+4. Numeric grid columns use `DataGridTemplateColumn` with `SortMemberPath` to right-align while staying sortable, because Avalonia's `DataGridTextColumn` has no WPF-style `ElementStyle`. The detail redundancy card is minimal (an indicator shown when the index is redundant); the full covering-index + rule (R1/R2/R3) breakdown is deferred until that pairing is threaded to the detail VM.
 
 ---
 
@@ -60,12 +61,15 @@ Deleted at cutover (Task 13): `ViewModels/MainWindowViewModel.cs`, `tests/.../Vi
 
 - [ ] **Step 1: Add the package references**
 
-In `SmartIndexManager.App.csproj`, inside the existing `<ItemGroup>` that holds `PackageReference`s, add:
+Do not pin a guessed version. Let the restore pick a build compatible with the pinned Avalonia 11.3:
 
-```xml
-<PackageReference Include="Semi.Avalonia" Version="11.2.1.9" />
-<PackageReference Include="Material.Icons.Avalonia" Version="2.4.1" />
+Run:
+```bash
+dotnet add src/SmartIndexManager.App package Semi.Avalonia
+dotnet add src/SmartIndexManager.App package Material.Icons.Avalonia
 ```
+
+Then open `SmartIndexManager.App.csproj` and confirm two `<PackageReference>` lines were added. Verify the resolved `Semi.Avalonia` version targets Avalonia 11.3 (its major.minor tracks Avalonia; a `11.2.x` Semi build against Avalonia 11.3 can throw missing-resource errors at runtime). If restore pulled a `11.2.x` Semi, pin the latest `11.3.x` explicitly: `dotnet add src/SmartIndexManager.App package Semi.Avalonia --version 11.3.*`.
 
 - [ ] **Step 2: Create the token dictionary stub**
 
@@ -103,7 +107,7 @@ Replace the contents of `src/SmartIndexManager.App/App.axaml` with:
 </Application>
 ```
 
-Note: the exact `Semi.Avalonia` include element and namespace can differ per package version. If Step 4 fails to build, open the installed `Semi.Avalonia` package README (or its `nupkg` `Themes` folder) and use the exact `<StyleInclude>`/`SemiTheme` line it documents. This is a third-party integration point verified by the build, not a design choice.
+Note: the exact `Semi.Avalonia` include element/namespace, the `Locale` attribute, and Semi resource keys (such as the border brush used in Task 13) are package-specific API surface that differs across versions. Before finishing this task, open the installed `Semi.Avalonia` package README (or its `nupkg` `Themes` folder) and confirm: (a) the exact `SemiTheme`/`StyleInclude` line and whether `Locale` is supported, and (b) the border brush resource key you will reference in Task 13 (commonly `SemiColorBorder`). Record the confirmed border key in a comment in `Tokens.axaml` so Task 13 does not rediscover it. This is a third-party integration point verified by the build, not a design choice.
 
 - [ ] **Step 4: Build to verify the theme wires up**
 
@@ -171,8 +175,6 @@ Replace `src/SmartIndexManager.App/Resources/Tokens.axaml` with:
     <x:Double x:Key="GridRowHeight">28</x:Double>
     <CornerRadius x:Key="RadiusSm">3</CornerRadius>
     <CornerRadius x:Key="RadiusMd">6</CornerRadius>
-
-    <ControlTheme x:Key="{x:Type TextBlock}" TargetType="TextBlock" />
 
     <Style Selector="TextBlock.caption">
         <Setter Property="FontSize" Value="11" />
@@ -390,7 +392,7 @@ public class BrowseViewModelTests : IDisposable
 }
 ```
 
-Create `tests/SmartIndexManager.App.Tests/ViewModels/BrowseConcurrencyTests.cs` by copying `DetailConcurrencyTests.cs` and adapting it to `BrowseViewModel`: keep the `ConcurrencyProbeProvider` inner class verbatim, and replace the `Build`/`Overlapping_...` body so it drives `BrowseViewModel` directly:
+First extract the concurrency probe into a shared fake so it is not copy-pasted. Create `tests/SmartIndexManager.App.Tests/Fakes/ConcurrencyProbeProvider.cs` by moving the `ConcurrencyProbeProvider` inner class out of `DetailConcurrencyTests.cs` into a `public sealed class ConcurrencyProbeProvider : IIndexProvider` in namespace `SmartIndexManager.App.Tests.Fakes` (body unchanged), and update `DetailConcurrencyTests.cs` to reference the shared type (add `using SmartIndexManager.App.Tests.Fakes;`, delete its inner copy). `DetailConcurrencyTests.cs` is deleted at cutover in Task 13; until then both test classes share the one probe. Then create `tests/SmartIndexManager.App.Tests/ViewModels/BrowseConcurrencyTests.cs` driving `BrowseViewModel` with the shared probe:
 
 ```csharp
 using SmartIndexManager.App.Localization;
@@ -406,8 +408,6 @@ public class BrowseConcurrencyTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("sim-browseconc-").FullName;
     public void Dispose() => Directory.Delete(_dir, recursive: true);
-
-    // Paste the ConcurrencyProbeProvider inner class from DetailConcurrencyTests.cs here, unchanged.
 
     [Fact]
     public async Task Overlapping_detail_loads_never_run_concurrently_on_the_provider()
@@ -477,11 +477,13 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
         Grid = grid;
         _paths = paths;
         _loc = loc;
-        Grid.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(IndexGridViewModel.SelectedRow))
-                _ = ShowDetailAsync(Grid.SelectedRow);
-        };
+        Grid.PropertyChanged += OnGridPropertyChanged;
+    }
+
+    private void OnGridPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(IndexGridViewModel.SelectedRow))
+            _ = ShowDetailAsync(Grid.SelectedRow);
     }
 
     public async Task OnConnectedAsync(IIndexProvider provider, IReadOnlyList<IndexRowViewModel> rows, CancellationToken ct)
@@ -519,9 +521,9 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
                 await detail.ShowAsync(row, cts.Token).ConfigureAwait(true);
             }
             catch (OperationCanceledException) { }
-            catch (Exception)
+            catch (Exception ex)
             {
-                ErrorMessage = _loc["Detail_Error"];
+                ErrorMessage = $"{_loc["Detail_Error"]}: {ex.Message}";
             }
             finally
             {
@@ -544,6 +546,7 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        Grid.PropertyChanged -= OnGridPropertyChanged;
         await StopDetailWorkAsync().ConfigureAwait(true);
         _detailGate.Dispose();
     }
@@ -967,7 +970,8 @@ public class ShellViewModelTests : IDisposable
     public void Default_destination_is_browse_and_current_page_is_the_browse_vm()
     {
         var shell = Build();
-        Assert.Equal("Browse", shell.SelectedDestination?.Title);
+        Assert.Equal(5, shell.Destinations.Count);
+        Assert.Same(shell.Destinations[0], shell.SelectedDestination);
         Assert.IsType<BrowseViewModel>(shell.CurrentPage);
     }
 
@@ -975,9 +979,10 @@ public class ShellViewModelTests : IDisposable
     public void Selecting_a_destination_sets_current_page()
     {
         var shell = Build();
-        var settings = shell.Destinations.First(d => d.Title == "Settings");
-        shell.SelectedDestination = settings;
-        Assert.Same(settings.PageViewModel, shell.CurrentPage);
+        var last = shell.Destinations[^1];   // Settings, by position (title is localized, so assert by position)
+        shell.SelectedDestination = last;
+        Assert.Same(last.PageViewModel, shell.CurrentPage);
+        Assert.IsType<PlaceholderPageViewModel>(shell.CurrentPage);
     }
 
     [Fact]
@@ -1082,6 +1087,8 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        Connection.Connected -= OnConnectedAsync;
+        Connection.Disconnected -= OnDisconnectedAsync;
         await Connection.DisposeAsync().ConfigureAwait(true);
         await _browse.DisposeAsync().ConfigureAwait(true);
     }
@@ -1091,9 +1098,9 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~ShellViewModelTests"`
-Expected: PASS (4 tests). Add the `Nav_*` and `Placeholder_Message` keys in Task 8; until then `ResxLocalizer` returns the key name, which the tests tolerate (they assert `"Browse"`, `"Settings"` which are the key suffixes). If `ResxLocalizer` returns the full key, adjust the two title asserts to match the localizer's missing-key behavior, or run Task 8 first.
+Expected: PASS (4 tests).
 
-Note: if the localizer throws on a missing key rather than echoing it, reorder so Task 8 runs before this step. Confirm `ResxLocalizer` missing-key behavior in `src/SmartIndexManager.App/Localization/ResxLocalizer.cs`.
+Verified: `ResxLocalizer` returns `"[key]"` for a missing key and never throws (see `src/SmartIndexManager.App/Localization/ResxLocalizer.cs`), so the `ShellViewModel` constructor is safe even though the `Nav_*` and `Placeholder_Message` keys are not added until Task 8. The tests assert by destination position and page-VM type, not by localized title, so they pass regardless of task order.
 
 - [ ] **Step 5: Commit**
 
@@ -1111,11 +1118,12 @@ git commit -m "feat(app): ShellViewModel with navigation, theme, and connection 
 - Modify: `src/SmartIndexManager.App/Localization/Strings.Designer.cs`
 
 **Interfaces:**
-- Produces resource keys used by the shell and views: `Nav_Browse`, `Nav_Basket`, `Nav_Restore`, `Nav_Audit`, `Nav_Settings`, `Placeholder_Message`, `Connection_Connect`, `Connection_Disconnect`, `Connection_Manage`, `Connection_Prompt`, `Grid_MatchCount`, `Detail_Empty`, `Detail_Copy`, `Detail_Section_Ddl`, `Detail_Section_Structure`, `Detail_Section_Usage`, `Detail_Section_Score`, `Detail_Section_Redundancy`, `Browse_ErrorRetry`.
+- Produces these NEW resource keys: `Nav_Browse`, `Nav_Basket`, `Nav_Restore`, `Nav_Audit`, `Nav_Settings`, `Placeholder_Message`, `Connection_Disconnect`, `Connection_Manage`, `Connection_Prompt`, `Grid_MatchCount`, `Detail_Empty`, `Detail_Copy`, `Detail_Section_Structure`, `Detail_Section_Usage`, `Detail_Section_ProviderProps`.
+- REUSES these keys that already exist in `Strings.resx` (verified present; do not re-add): `App_Title`, `Action_Connect`, `Action_Cancel`, `Action_ToggleTheme`, `Connection_DatabasesWatermark`, `Connection_Title`, `Connection_Error`, `Grid_Filter`, `Grid_Column_Database/Schema/Table/Index/Type/SizeMb/Seeks/Scans/Updates/Score`, `Badge_NotDeletable/Redundant/ForeignKey/Hint`, `Detail_Ddl`, `Detail_ScoreFactors`, `Detail_Error`, `Detail_OldestSnapshot`. The Connect button reuses `Action_Connect`; the DDL card title reuses `Detail_Ddl`; the score card title reuses `Detail_ScoreFactors`.
 
-- [ ] **Step 1: Add the resx entries**
+- [ ] **Step 1: Add the new resx entries**
 
-In `src/SmartIndexManager.App/Localization/Strings.resx`, add one `<data>` element per key. Example for two of them (repeat the pattern for every key above):
+In `src/SmartIndexManager.App/Localization/Strings.resx`, add one `<data>` element per NEW key only (the reused keys above are already present):
 
 ```xml
 <data name="Nav_Browse" xml:space="preserve"><value>Browse</value></data>
@@ -1124,19 +1132,15 @@ In `src/SmartIndexManager.App/Localization/Strings.resx`, add one `<data>` eleme
 <data name="Nav_Audit" xml:space="preserve"><value>Audit</value></data>
 <data name="Nav_Settings" xml:space="preserve"><value>Settings</value></data>
 <data name="Placeholder_Message" xml:space="preserve"><value>Planned for a future version.</value></data>
-<data name="Connection_Connect" xml:space="preserve"><value>Connect</value></data>
 <data name="Connection_Disconnect" xml:space="preserve"><value>Disconnect</value></data>
 <data name="Connection_Manage" xml:space="preserve"><value>Manage…</value></data>
 <data name="Connection_Prompt" xml:space="preserve"><value>Connect to a server to browse indexes.</value></data>
 <data name="Grid_MatchCount" xml:space="preserve"><value>{0} of {1} indexes</value></data>
 <data name="Detail_Empty" xml:space="preserve"><value>Select an index to see its details.</value></data>
 <data name="Detail_Copy" xml:space="preserve"><value>Copy</value></data>
-<data name="Detail_Section_Ddl" xml:space="preserve"><value>Recreation DDL</value></data>
 <data name="Detail_Section_Structure" xml:space="preserve"><value>Structure</value></data>
 <data name="Detail_Section_Usage" xml:space="preserve"><value>Usage</value></data>
-<data name="Detail_Section_Score" xml:space="preserve"><value>Score explanation</value></data>
-<data name="Detail_Section_Redundancy" xml:space="preserve"><value>Redundancy</value></data>
-<data name="Browse_ErrorRetry" xml:space="preserve"><value>Retry</value></data>
+<data name="Detail_Section_ProviderProps" xml:space="preserve"><value>Provider properties</value></data>
 ```
 
 - [ ] **Step 2: Add the Designer accessors**
@@ -1171,7 +1175,7 @@ git commit -m "feat(app): localization strings for shell, connection bar, detail
 - Create: `src/SmartIndexManager.App/Views/EmptyStateView.axaml.cs`
 
 **Interfaces:**
-- Produces: a reusable `UserControl` rendering an icon, title, message, and optional action button. Bound via `DataContext` to any object exposing `IconKind` (`MaterialIconKind`), `Title` (`string`), `Message` (`string`); used directly for `PlaceholderPageViewModel` and embedded literally in Browse states.
+- Produces: a reusable `UserControl` rendering an icon, title, and message (no action button; none of the current empty states needs one, YAGNI). Bound via `DataContext` to any object exposing `IconKind` (`MaterialIconKind`), `Title` (`string`), `Message` (`string`); used directly for `PlaceholderPageViewModel`.
 
 - [ ] **Step 1: Create the code-behind**
 
@@ -1227,14 +1231,86 @@ git commit -m "feat(app): reusable EmptyStateView"
 ## Task 10: BrowseView (grid, score pill, badges, states)
 
 **Files:**
+- Modify: `src/SmartIndexManager.App/ViewModels/IndexGridViewModel.cs`
+- Test: `tests/SmartIndexManager.App.Tests/ViewModels/IndexGridViewModelTests.cs`
 - Create: `src/SmartIndexManager.App/Views/BrowseView.axaml`
 - Create: `src/SmartIndexManager.App/Views/BrowseView.axaml.cs`
+- Create: `src/SmartIndexManager.App/Views/BrowseStateConverters.cs`
 
 **Interfaces:**
 - Consumes: `BrowseViewModel` (`State`, `Grid`, `Detail`, `ErrorMessage`) and `IndexRowViewModel` (`IsScoreSafe/Caution/Risk`, `Score`, badge bools, `Seeks`/`Scans`/`Updates`/`SizeMb`).
-- Produces: the Browse page view. Detail cards come from Task 11 (`IndexDetailView`), referenced here.
+- Produces: `IndexGridViewModel.TotalCount` (`int`) and `.MatchCountText` (`string`); the Browse page view. Detail cards come from Task 11 (`IndexDetailView`), referenced here.
 
-- [ ] **Step 1: Create the code-behind**
+- [ ] **Step 1: Add TotalCount and MatchCountText to IndexGridViewModel (TDD)**
+
+Append to `tests/SmartIndexManager.App.Tests/ViewModels/IndexGridViewModelTests.cs`:
+
+```csharp
+[Fact]
+public void MatchCountText_reflects_filter_and_total()
+{
+    var vm = new IndexGridViewModel();   // no localizer -> "V of T" fallback
+    IndexRowViewModel Row(string name) => new(
+        SmartIndexManager.App.Tests.Fakes.IndexModelFactory.Nonclustered(name: name),
+        null, new SmartIndexManager.Core.Safety.SafetyAssessment(SmartIndexManager.Core.Safety.DeletionEligibility.Deletable, null, []), false, false);
+
+    vm.SetRows([Row("AAA"), Row("BBB"), Row("HR_legacy")]);
+    Assert.Equal(3, vm.TotalCount);
+    Assert.Equal("3 of 3", vm.MatchCountText);
+
+    vm.FilterText = "HR";
+    Assert.Equal("1 of 3", vm.MatchCountText);
+}
+```
+
+Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~IndexGridViewModelTests.MatchCountText"`
+Expected: FAIL (`TotalCount`/`MatchCountText` do not exist).
+
+Then edit `src/SmartIndexManager.App/ViewModels/IndexGridViewModel.cs`: add `using SmartIndexManager.App.Localization;`, replace the constructor, `SetRows`, and `OnFilterTextChanged` with the versions below, and add the new members:
+
+```csharp
+    private readonly ILocalizer? _loc;
+
+    public IndexGridViewModel(ILocalizer? loc = null)
+    {
+        _loc = loc;
+        View = new DataGridCollectionView(_all) { Filter = Matches };
+    }
+
+    public int TotalCount => _all.Count;
+
+    public string MatchCountText => _loc is not null
+        ? string.Format(_loc["Grid_MatchCount"], VisibleCount, TotalCount)
+        : $"{VisibleCount} of {TotalCount}";
+
+    public void SetRows(IReadOnlyList<IndexRowViewModel> rows)
+    {
+        _all.Clear();
+        _all.AddRange(rows);
+        View.Refresh();
+        NotifyCounts();
+    }
+
+    partial void OnFilterTextChanged(string value)
+    {
+        View.Refresh();
+        NotifyCounts();
+    }
+
+    private void NotifyCounts()
+    {
+        OnPropertyChanged(nameof(VisibleCount));
+        OnPropertyChanged(nameof(TotalCount));
+        OnPropertyChanged(nameof(MatchCountText));
+    }
+```
+
+The optional `ILocalizer? loc = null` keeps every existing `new IndexGridViewModel()` call compiling; DI passes the registered `ILocalizer`.
+
+Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~IndexGridViewModelTests.MatchCountText"`
+Expected: PASS.
+
+- [ ] **Step 2: Create the code-behind**
 
 Create `src/SmartIndexManager.App/Views/BrowseView.axaml.cs`:
 
@@ -1250,9 +1326,9 @@ public partial class BrowseView : UserControl
 }
 ```
 
-- [ ] **Step 2: Create the view**
+- [ ] **Step 3: Create the view**
 
-Create `src/SmartIndexManager.App/Views/BrowseView.axaml`. This folds in the old `IndexGridView` markup, adds the score pill (class-bound, theme-reactive), token-based badges, `StringFormat` numerics, a filter toolbar, and switches on `BrowseState`:
+Create `src/SmartIndexManager.App/Views/BrowseView.axaml`. This folds in the old `IndexGridView` markup, adds the score pill (class-bound, theme-reactive), token-based badges with icons, right-aligned formatted numerics, a filter toolbar with a live match count, a BrowseView-owned empty-detail state, and switches on `BrowseState`:
 
 ```xml
 <UserControl xmlns="https://github.com/avaloniaui"
@@ -1295,7 +1371,7 @@ Create `src/SmartIndexManager.App/Views/BrowseView.axaml`. This folds in the old
                     <TextBox Grid.Column="1" Watermark="{x:Static loc:Strings.Grid_Filter}"
                              Text="{Binding Grid.FilterText}" />
                     <TextBlock Grid.Column="2" Classes="caption" VerticalAlignment="Center" Margin="8,0,0,0"
-                               Text="{Binding Grid.VisibleCount}" />
+                               Text="{Binding Grid.MatchCountText}" />
                 </Grid>
                 <DataGrid ItemsSource="{Binding Grid.View}" SelectedItem="{Binding Grid.SelectedRow}"
                           IsReadOnly="True" CanUserSortColumns="True" CanUserReorderColumns="True"
@@ -1307,10 +1383,34 @@ Create `src/SmartIndexManager.App/Views/BrowseView.axaml`. This folds in the old
                         <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Table}"    Binding="{Binding Table}" Width="*" MinWidth="90" />
                         <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Index}"    Binding="{Binding Name}" Width="*" MinWidth="120" />
                         <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Type}"     Binding="{Binding Type}" Width="Auto" MinWidth="90" />
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_SizeMb}"   Binding="{Binding SizeMb, StringFormat={}{0:N1}}" Width="Auto" MinWidth="70" />
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Seeks}"    Binding="{Binding Seeks, StringFormat={}{0:N0}}" Width="Auto" MinWidth="70" />
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Scans}"    Binding="{Binding Scans, StringFormat={}{0:N0}}" Width="Auto" MinWidth="70" />
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Updates}"  Binding="{Binding Updates, StringFormat={}{0:N0}}" Width="Auto" MinWidth="80" />
+                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_SizeMb}" Width="Auto" MinWidth="70" SortMemberPath="SizeMb">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                    <TextBlock Text="{Binding SizeMb, StringFormat={}{0:N1}}" TextAlignment="Right" Margin="0,0,8,0" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Seeks}" Width="Auto" MinWidth="70" SortMemberPath="Seeks">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                    <TextBlock Text="{Binding Seeks, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Scans}" Width="Auto" MinWidth="70" SortMemberPath="Scans">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                    <TextBlock Text="{Binding Scans, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Updates}" Width="Auto" MinWidth="80" SortMemberPath="Updates">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                    <TextBlock Text="{Binding Updates, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Score}" Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate x:DataType="vm:IndexRowViewModel">
@@ -1338,13 +1438,22 @@ Create `src/SmartIndexManager.App/Views/BrowseView.axaml`. This folds in the old
                                             </StackPanel>
                                         </Border>
                                         <Border Classes="badge" Background="{DynamicResource WarnBrush}" IsVisible="{Binding Redundant}">
-                                            <TextBlock Text="{x:Static loc:Strings.Badge_Redundant}" Foreground="White" FontSize="11" />
+                                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                                <mi:MaterialIcon Kind="ContentDuplicate" Width="11" Height="11" Foreground="White" />
+                                                <TextBlock Text="{x:Static loc:Strings.Badge_Redundant}" Foreground="White" FontSize="11" />
+                                            </StackPanel>
                                         </Border>
                                         <Border Classes="badge" Background="{DynamicResource InfoBrush}" IsVisible="{Binding SupportsForeignKey}">
-                                            <TextBlock Text="{x:Static loc:Strings.Badge_ForeignKey}" Foreground="White" FontSize="11" />
+                                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                                <mi:MaterialIcon Kind="KeyLink" Width="11" Height="11" Foreground="White" />
+                                                <TextBlock Text="{x:Static loc:Strings.Badge_ForeignKey}" Foreground="White" FontSize="11" />
+                                            </StackPanel>
                                         </Border>
                                         <Border Classes="badge" Background="{DynamicResource AccentAltBrush}" IsVisible="{Binding ReferencedByHint}">
-                                            <TextBlock Text="{x:Static loc:Strings.Badge_Hint}" Foreground="White" FontSize="11" />
+                                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                                <mi:MaterialIcon Kind="FlagOutline" Width="11" Height="11" Foreground="White" />
+                                                <TextBlock Text="{x:Static loc:Strings.Badge_Hint}" Foreground="White" FontSize="11" />
+                                            </StackPanel>
                                         </Border>
                                     </StackPanel>
                                 </DataTemplate>
@@ -1354,7 +1463,13 @@ Create `src/SmartIndexManager.App/Views/BrowseView.axaml`. This folds in the old
                 </DataGrid>
             </DockPanel>
             <GridSplitter Grid.Column="1" Width="4" />
-            <views:IndexDetailView Grid.Column="2" DataContext="{Binding Detail}" />
+            <Panel Grid.Column="2">
+                <views:IndexDetailView DataContext="{Binding Detail}"
+                                       IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <TextBlock Classes="caption" Text="{x:Static loc:Strings.Detail_Empty}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNull}}" />
+            </Panel>
         </Grid>
 
         <!-- Disconnected -->
@@ -1375,7 +1490,9 @@ Create `src/SmartIndexManager.App/Views/BrowseView.axaml`. This folds in the old
 </UserControl>
 ```
 
-- [ ] **Step 3: Add the BrowseState converters**
+Note on the numeric columns: they use `DataGridTemplateColumn` with a right-aligned `TextBlock` plus `SortMemberPath` (which keeps them sortable), rather than `DataGridTextColumn.ElementStyle`. Avalonia's `DataGridTextColumn` does not expose a WPF-style `ElementStyle` for per-cell text alignment, so the template-column form is the reliable way to right-align while preserving sort.
+
+- [ ] **Step 4: Add the BrowseState converters**
 
 Create `src/SmartIndexManager.App/Views/BrowseStateConverters.cs`:
 
@@ -1399,16 +1516,19 @@ public static class BrowseStateConverters
 
 Note: `FuncValueConverter` is deterministic and could be unit-tested, but these are trivial one-liners over an enum; the build plus the visual checklist cover them. If you prefer a test, assert `IsGridVisible.Convert(BrowseState.Ready, ...)` returns `true`.
 
-- [ ] **Step 4: Build to verify**
+- [ ] **Step 5: Build and test to verify**
 
 Run: `dotnet build SmartIndexManager.sln`
-Expected: build succeeds. `IndexDetailView` is referenced; it still exists from before this task (redesigned in Task 11). If the old `IndexDetailView` binds properties that still exist on `IndexDetailViewModel`, the build passes.
+Expected: build succeeds. `IndexDetailView` is referenced; it still exists from before this task (redesigned in Task 11) and binds properties that still exist on `IndexDetailViewModel`, so the build passes.
 
-- [ ] **Step 5: Commit**
+Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~IndexGridViewModelTests"`
+Expected: PASS, including the new match-count test.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/SmartIndexManager.App/Views/BrowseView.axaml src/SmartIndexManager.App/Views/BrowseView.axaml.cs src/SmartIndexManager.App/Views/BrowseStateConverters.cs
-git commit -m "feat(app): BrowseView with score pills, token badges, and state switching"
+git add src/SmartIndexManager.App/ViewModels/IndexGridViewModel.cs tests/SmartIndexManager.App.Tests/ViewModels/IndexGridViewModelTests.cs src/SmartIndexManager.App/Views/BrowseView.axaml src/SmartIndexManager.App/Views/BrowseView.axaml.cs src/SmartIndexManager.App/Views/BrowseStateConverters.cs
+git commit -m "feat(app): BrowseView with score pills, icon badges, right-aligned numerics, match count, and state switching"
 ```
 
 ---
@@ -1416,13 +1536,96 @@ git commit -m "feat(app): BrowseView with score pills, token badges, and state s
 ## Task 11: IndexDetailView redesigned as titled cards
 
 **Files:**
+- Modify: `src/SmartIndexManager.App/ViewModels/IndexDetailViewModel.cs`
 - Modify: `src/SmartIndexManager.App/Views/IndexDetailView.axaml`
-- Modify: `src/SmartIndexManager.App/Views/IndexDetailView.axaml.cs` (only if needed)
+- Modify: `src/SmartIndexManager.App/Views/IndexDetailView.axaml.cs`
+- Test: `tests/SmartIndexManager.App.Tests/ViewModels/IndexDetailViewModelTests.cs`
 
 **Interfaces:**
-- Consumes: `IndexDetailViewModel` (`Ddl`, `OldestSnapshotText`, `Queries`, `Hints`, `ScoreFactors`).
+- Produces on `IndexDetailViewModel` (populated in `ShowAsync` from the selected `IndexRowViewModel`): `HeaderName`, `TypeText`, `KeyColumnsText`, `IncludesText` (`string`), `IsUnique`, `IsRedundant` (`bool`), `Score` (`int?`), `IsScoreSafe`/`IsScoreCaution`/`IsScoreRisk` (`bool`), `ProviderProps` (`ObservableCollection<KeyValuePair<string,string>>`). Existing `Ddl`, `OldestSnapshotText`, `ScoreFactors` remain.
 
-- [ ] **Step 1: Rewrite the detail view as cards**
+Cards implemented: header (name, type, score pill), DDL (with copy), structure (key columns, includes), usage, score explanation, provider properties (collapsible). Deferred with an explicit note: the full redundancy card (covering index + rule R1/R2/R3) is out of scope here because the covering-index pairing is not yet threaded to the detail VM; a minimal "redundant" card is shown when `IsRedundant` is true.
+
+- [ ] **Step 1: Extend IndexDetailViewModel (TDD)**
+
+Append to `tests/SmartIndexManager.App.Tests/ViewModels/IndexDetailViewModelTests.cs` (create the file if absent, matching the existing test namespace):
+
+```csharp
+[Fact]
+public async Task ShowAsync_populates_header_score_and_redundancy()
+{
+    var dir = Directory.CreateTempSubdirectory("sim-detailvm-").FullName;
+    try
+    {
+        var provider = new SmartIndexManager.App.Tests.Fakes.FakeIndexProvider
+        {
+            ServerInfo = new SmartIndexManager.Core.Provider.ServerInfo { ServerName = "PROD01", ProductVersion = new Version(16, 0), Edition = "Developer", Platform = SmartIndexManager.Core.Provider.ServerPlatform.OnPremises, UptimeDays = 100 },
+            Capabilities = new SmartIndexManager.Core.Provider.ProviderCapabilities(),
+            Permissions = new SmartIndexManager.Core.Provider.PermissionReport(),
+            Indexes = []
+        };
+        var vm = new IndexDetailViewModel(provider, new SmartIndexManager.App.Services.AppPaths(dir, dir, dir), new SmartIndexManager.App.Localization.ResxLocalizer());
+        var index = SmartIndexManager.App.Tests.Fakes.IndexModelFactory.Nonclustered(name: "IX_Test");
+        var score = new SmartIndexManager.Core.Scoring.ConfidenceScore(90, SmartIndexManager.Core.Scoring.ScoreColor.Green, []);
+        var safety = new SmartIndexManager.Core.Safety.SafetyAssessment(SmartIndexManager.Core.Safety.DeletionEligibility.Deletable, null, []);
+        var row = new IndexRowViewModel(index, score, safety, isRedundant: true, isReferencedByHint: false);
+
+        await vm.ShowAsync(row, CancellationToken.None);
+
+        Assert.Equal("IX_Test", vm.HeaderName);
+        Assert.Equal(90, vm.Score);
+        Assert.True(vm.IsScoreSafe);
+        Assert.True(vm.IsRedundant);
+    }
+    finally { Directory.Delete(dir, recursive: true); }
+}
+```
+
+Confirm the `ConfidenceScore` and `SafetyAssessment` constructor shapes from Core and adjust the two `new(...)` calls if needed (only those lines).
+
+Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~IndexDetailViewModelTests.ShowAsync_populates"`
+Expected: FAIL (`HeaderName` etc. do not exist).
+
+Then edit `src/SmartIndexManager.App/ViewModels/IndexDetailViewModel.cs`: add `using System.Linq;`, add the fields, and populate them at the top of `ShowAsync` (right after `var index = row.Index;`):
+
+```csharp
+    [ObservableProperty] private string _headerName = "";
+    [ObservableProperty] private string _typeText = "";
+    [ObservableProperty] private string _keyColumnsText = "";
+    [ObservableProperty] private string _includesText = "";
+    [ObservableProperty] private bool _isUnique;
+    [ObservableProperty] private bool _isRedundant;
+    [ObservableProperty] private int? _score;
+    [ObservableProperty] private bool _isScoreSafe;
+    [ObservableProperty] private bool _isScoreCaution;
+    [ObservableProperty] private bool _isScoreRisk;
+
+    public ObservableCollection<KeyValuePair<string, string>> ProviderProps { get; } = [];
+```
+
+```csharp
+        // Populate the header/structure/score cards from the selected row (no provider round-trip).
+        HeaderName = index.Name;
+        TypeText = index.Type.ToString();
+        KeyColumnsText = string.Join(", ", index.KeyColumns.Select(c => c.Name));
+        IncludesText = string.Join(", ", index.IncludedColumns);
+        IsUnique = index.IsUnique;
+        IsRedundant = row.Redundant;
+        Score = row.Score;
+        IsScoreSafe = row.IsScoreSafe;
+        IsScoreCaution = row.IsScoreCaution;
+        IsScoreRisk = row.IsScoreRisk;
+        ProviderProps.Clear();
+        foreach (var kv in index.ProviderProperties)
+            ProviderProps.Add(new KeyValuePair<string, string>(kv.Key, kv.Value?.ToString() ?? ""));
+```
+
+Confirm the `ProviderProperties` value type in `IndexModel`; `kv.Value?.ToString()` is safe whether it is `object?` or `string`.
+
+Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~IndexDetailViewModelTests.ShowAsync_populates"`
+Expected: PASS.
+
+- [ ] **Step 2: Rewrite the detail view as cards**
 
 Replace the contents of `src/SmartIndexManager.App/Views/IndexDetailView.axaml` with:
 
@@ -1431,6 +1634,8 @@ Replace the contents of `src/SmartIndexManager.App/Views/IndexDetailView.axaml` 
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
              xmlns:loc="clr-namespace:SmartIndexManager.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:scoring="clr-namespace:SmartIndexManager.Core.Scoring;assembly=SmartIndexManager.Core"
              x:Class="SmartIndexManager.App.Views.IndexDetailView"
              x:DataType="vm:IndexDetailViewModel">
     <UserControl.Styles>
@@ -1440,19 +1645,53 @@ Replace the contents of `src/SmartIndexManager.App/Views/IndexDetailView.axaml` 
             <Setter Property="Padding" Value="12" />
             <Setter Property="Margin" Value="0,0,0,8" />
         </Style>
+        <Style Selector="Border.score-pill">
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+        <Style Selector="Border.score-pill.score-safe"><Setter Property="Background" Value="{DynamicResource ScoreSafeBrush}" /></Style>
+        <Style Selector="Border.score-pill.score-caution"><Setter Property="Background" Value="{DynamicResource ScoreCautionBrush}" /></Style>
+        <Style Selector="Border.score-pill.score-risk"><Setter Property="Background" Value="{DynamicResource ScoreRiskBrush}" /></Style>
     </UserControl.Styles>
     <ScrollViewer>
         <StackPanel Margin="8">
-            <!-- Empty state when no detail is bound -->
-            <TextBlock Classes="caption" Text="{x:Static loc:Strings.Detail_Empty}"
-                       IsVisible="{Binding $parent[UserControl].DataContext, Converter={x:Static ObjectConverters.IsNull}}" />
+
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Classes="title" Text="{Binding HeaderName}" />
+                        <TextBlock Classes="caption" Text="{Binding TypeText}" />
+                    </StackPanel>
+                    <Border Grid.Column="1" Classes="score-pill" VerticalAlignment="Center"
+                            Classes.score-safe="{Binding IsScoreSafe}"
+                            Classes.score-caution="{Binding IsScoreCaution}"
+                            Classes.score-risk="{Binding IsScoreRisk}"
+                            IsVisible="{Binding Score, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Text="{Binding Score}" Foreground="White" />
+                    </Border>
+                </Grid>
+            </Border>
 
             <Border Classes="card">
                 <StackPanel Spacing="4">
-                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Section_Ddl}" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="subtitle" Text="{x:Static loc:Strings.Detail_Ddl}" />
+                        <Button Grid.Column="1" Click="OnCopyDdl" Padding="4,0"
+                                ToolTip.Tip="{x:Static loc:Strings.Detail_Copy}">
+                            <mi:MaterialIcon Kind="ContentCopy" Width="14" Height="14" />
+                        </Button>
+                    </Grid>
                     <TextBox Classes="code" Text="{Binding Ddl}" IsReadOnly="True"
                              AcceptsReturn="True" TextWrapping="NoWrap"
                              HorizontalScrollBarVisibility="Auto" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Section_Structure}" />
+                    <TextBlock Classes="caption" Text="{Binding KeyColumnsText}" />
+                    <TextBlock Classes="caption" Text="{Binding IncludesText}" />
                 </StackPanel>
             </Border>
 
@@ -1465,33 +1704,87 @@ Replace the contents of `src/SmartIndexManager.App/Views/IndexDetailView.axaml` 
 
             <Border Classes="card">
                 <StackPanel Spacing="4">
-                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Section_Score}" />
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_ScoreFactors}" />
                     <ItemsControl ItemsSource="{Binding ScoreFactors}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Classes="caption" Text="{Binding}" />
+                            <DataTemplate x:DataType="scoring:ScoreFactor">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                                    <TextBlock Grid.Column="0" Classes="caption" FontWeight="SemiBold"
+                                               Text="{Binding Name}" Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="1" Classes="caption" TextWrapping="Wrap"
+                                               Text="{Binding Description}" />
+                                </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
             </Border>
+
+            <!-- Minimal redundancy indicator. Full covering-index + rule detail deferred (data not yet threaded). -->
+            <Border Classes="card" IsVisible="{Binding IsRedundant}">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Badge_Redundant}" />
+                    <mi:MaterialIcon Kind="ContentDuplicate" Width="16" Height="16" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <Expander Header="{x:Static loc:Strings.Detail_Section_ProviderProps}" Margin="0,0,0,8">
+                <ItemsControl ItemsSource="{Binding ProviderProps}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                                <TextBlock Grid.Column="0" Classes="caption" FontWeight="SemiBold"
+                                           Text="{Binding Key}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Value}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Expander>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
 ```
 
-Note: the `ScoreFactor` item template shows `{Binding}`, which renders `ScoreFactor.ToString()`. If `ScoreFactor` (see `src/SmartIndexManager.Core/Scoring/ScoreFactor.cs`) exposes named members (e.g. `Name`, `Contribution`), bind those two in a two-column layout instead. Adjust only the inner `DataTemplate`.
+The empty-detail state is handled by `BrowseView` (Task 10), so this view assumes a non-null detail VM. Confirm `ScoreFactor`'s members are `Name` and `Description` (verified: `record ScoreFactor(string Name, string Description)`).
 
-- [ ] **Step 2: Build to verify**
+- [ ] **Step 3: Add the copy-to-clipboard handler**
+
+Replace `src/SmartIndexManager.App/Views/IndexDetailView.axaml.cs` with:
+
+```csharp
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml;
+using SmartIndexManager.App.ViewModels;
+
+namespace SmartIndexManager.App.Views;
+
+public partial class IndexDetailView : UserControl
+{
+    public IndexDetailView() => AvaloniaXamlLoader.Load(this);
+
+    private async void OnCopyDdl(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is IndexDetailViewModel vm && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+            await clipboard.SetTextAsync(vm.Ddl);
+    }
+}
+```
+
+- [ ] **Step 4: Build and test to verify**
 
 Run: `dotnet build SmartIndexManager.sln`
 Expected: build succeeds, 0 errors.
 
-- [ ] **Step 3: Commit**
+Run: `dotnet test tests/SmartIndexManager.App.Tests --filter "FullyQualifiedName~IndexDetailViewModelTests"`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/SmartIndexManager.App/Views/IndexDetailView.axaml
-git commit -m "feat(app): IndexDetailView as titled cards (DDL, usage, score)"
+git add src/SmartIndexManager.App/ViewModels/IndexDetailViewModel.cs src/SmartIndexManager.App/Views/IndexDetailView.axaml src/SmartIndexManager.App/Views/IndexDetailView.axaml.cs tests/SmartIndexManager.App.Tests/ViewModels/IndexDetailViewModelTests.cs
+git commit -m "feat(app): IndexDetailView as titled cards (header, DDL+copy, structure, usage, score, provider props)"
 ```
 
 ---
@@ -1656,7 +1949,7 @@ Replace the contents of `src/SmartIndexManager.App/Views/MainWindow.axaml` with:
                          Watermark="{x:Static loc:Strings.Connection_DatabasesWatermark}"
                          Text="{Binding Connection.Connections.DatabasesText}" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
-                    <Button Content="{x:Static loc:Strings.Connection_Connect}" Command="{Binding Connection.ConnectCommand}"
+                    <Button Content="{x:Static loc:Strings.Action_Connect}" Command="{Binding Connection.ConnectCommand}"
                             IsEnabled="{Binding !Connection.IsBusy}" />
                     <Button Content="{x:Static loc:Strings.Connection_Disconnect}" Command="{Binding Connection.DisconnectCommand}"
                             IsVisible="{Binding Connection.IsConnected}" />
@@ -1711,7 +2004,14 @@ In `src/SmartIndexManager.App/App.axaml.cs`, change the `desktop.MainWindow` ass
             desktop.MainWindow = new MainWindow { DataContext = services.GetRequiredService<ShellViewModel>() };
 ```
 
-- [ ] **Step 5: Delete superseded files**
+- [ ] **Step 5: Confirm no lingering references, then delete superseded files**
+
+First confirm nothing outside the files being removed still references the old shell VM or the folded-in grid view (the distinct `IndexGridViewModel` type stays):
+
+Run: `grep -rn "MainWindowViewModel\|IndexGridView\b" src tests --include=*.cs --include=*.axaml`
+Expected: matches only inside the five files listed below (and none referencing the `IndexGridView` control elsewhere). `IndexGridViewModel` matches are fine and must remain.
+
+Then:
 
 ```bash
 git rm src/SmartIndexManager.App/ViewModels/MainWindowViewModel.cs \
@@ -1752,7 +2052,12 @@ Expected: all projects green. Provider integration tests auto-skip without Docke
 
 - [ ] **Step 2: Fluent-removal follow-up check**
 
-Attempt to remove `Avalonia.Themes.Fluent` from the App styles (if any `<FluentTheme />` remains) and from the `.csproj` if it was only pulled transitively. Rebuild and, if a display is available, launch. If any control renders unstyled or the app throws a missing-resource exception, revert this step and leave Fluent in place with a one-line comment in `App.axaml` explaining why. This is expected to be optional.
+First see whether `Avalonia.Themes.Fluent` is still needed at all:
+
+Run: `dotnet list src/SmartIndexManager.App package --include-transitive`
+Inspect whether `Avalonia.Themes.Fluent` appears only transitively (pulled by `Avalonia.Desktop`/Semi) or is referenced directly. There is no direct `<PackageReference>` to it in the current `.csproj`, so removal is only about any `<FluentTheme />` still present in `App.axaml`.
+
+Then confirm no `<FluentTheme />` element remains in `App.axaml` (Task 1 already replaced it with `SemiTheme`). If one remains, remove it, rebuild, and if a display is available, launch. If any control renders unstyled or the app throws a missing-resource exception, restore `<FluentTheme />` above `SemiTheme` with a one-line comment explaining why. This is expected to be optional cleanup.
 
 Run: `dotnet build SmartIndexManager.sln`
 Expected: build succeeds either way.
@@ -1785,4 +2090,5 @@ git commit --allow-empty -m "chore(app): GUI redesign complete; build+tests gree
 
 - Spec coverage: shell/nav (Tasks 6, 7, 13), connection bar + dialog (Tasks 5, 12, 13), tokens (Tasks 1, 2), score pill reusing Core `ScoreColor` (Tasks 3, 10), badges/grid/detail (Tasks 10, 11), states + placeholders (Tasks 9, 10, 13), accessibility (Task 13), testing + visual validation (all VM tasks + Task 14). Group-by and Basket/Restore/Audit/Settings features remain out of scope per the spec.
 - Type consistency: `OnConnectedAsync(IIndexProvider, IReadOnlyList<IndexRowViewModel>, CancellationToken)`, `OnDisconnectedAsync()`, `event Func<LoadResult, Task>? Connected`, `event Func<Task>? Disconnected`, `NavigationDestination(string, MaterialIconKind, object, bool)`, and `BrowseState` values are used identically across Tasks 4, 5, 7, 10, 13.
-- Known verification hooks left for the implementer (all build- or test-gated, none are placeholders for our own logic): exact Semi include line (Task 1), `ConfidenceScore`/`SafetyAssessment`/`ScoreFactor` member shapes from Core (Tasks 3, 11), `ResxLocalizer` missing-key behavior (Task 7), and Semi border resource key (Task 13).
+- Resolved during review: `ResxLocalizer` returns `"[key]"` on a missing key (verified, no throw), and `ScoreFactor` is `record ScoreFactor(string Name, string Description)` (verified). Most view keys (`Grid_Column_*`, `Badge_*`, `Action_*`, `Detail_Ddl`, `Detail_ScoreFactors`) already exist in `Strings.resx`; Task 8 adds only the genuinely new keys.
+- Known verification hooks left for the implementer (all build- or test-gated, none are placeholders for our own logic): the exact `Semi.Avalonia` include line, its Avalonia-11.3-compatible version, and its border resource key (Task 1, recorded for Task 13); the `ConfidenceScore` and `SafetyAssessment` constructor shapes and the `IndexModel.ProviderProperties` value type from Core (Tasks 3, 11).
