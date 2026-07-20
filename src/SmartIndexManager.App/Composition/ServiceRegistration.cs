@@ -19,6 +19,9 @@ public static class ServiceRegistration
         services.AddSingleton<IAuthAvailability>(_ => AuthAvailability.ForCurrentOs());
         services.AddSingleton<IIndexLoadService, IndexLoadService>();
         services.AddTransient<ConnectionManagerViewModel>();
+        services.AddSingleton<IndexGridViewModel>();
+        services.AddSingleton<PermissionStatusViewModel>();
+        services.AddSingleton<MainWindowViewModel>();
         return services;
     }
 }
