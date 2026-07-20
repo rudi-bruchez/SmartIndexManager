@@ -1,4 +1,9 @@
+<!-- task-status: done; date: 2026-07-20 -->
 # SmartIndexManager
+
+## Traitement
+
+Brainstorm mené le 2026-07-20 : contradictions résolues, trous fonctionnels comblés, 12 décisions supplémentaires actées avec l'utilisateur. Le tout est consolidé dans `2026-07-20-smartindexmanager-design.md`, qui devient la spécification de référence.
 
 Note : ce document est la trace historique du brainstorm initial. La spécification consolidée et à jour est dans `2026-07-20-smartindexmanager-design.md`.
 
