@@ -1,6 +1,5 @@
 using SmartIndexManager.Core.Model;
 using SmartIndexManager.Core.Provider;
-using Xunit;
 
 namespace SmartIndexManager.Core.Tests.Provider;
 

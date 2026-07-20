@@ -53,4 +53,11 @@ public class SqlServerConnectionFactoryTests
         Assert.Throws<ArgumentException>(
             () => SqlServerConnectionFactory.BuildConnectionString(Base(AuthMode.SqlLogin), null));
     }
+
+    [Fact]
+    public void Sql_login_without_login_throws()
+    {
+        Assert.Throws<ArgumentException>(
+            () => SqlServerConnectionFactory.BuildConnectionString(Base(AuthMode.SqlLogin) with { Login = "" }, "s3cret"));
+    }
 }

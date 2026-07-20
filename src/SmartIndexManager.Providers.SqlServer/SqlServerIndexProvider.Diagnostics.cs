@@ -8,6 +8,10 @@ public sealed partial class SqlServerIndexProvider
     public async Task<IReadOnlyList<QueryUsage>> GetQueryUsageAsync(
         IndexRef index, CancellationToken cancellationToken = default)
     {
+        // Plan-cache and Query Store reads need VIEW SERVER STATE / VIEW DATABASE STATE.
+        // Without it, degrade gracefully (the PermissionReport already flags this) instead of throwing.
+        if (!Permissions.CanViewState) return [];
+
         await UseDatabaseAsync(index.Database, cancellationToken).ConfigureAwait(false);
         var parameters = new Dictionary<string, object?> { ["@IndexName"] = index.Index };
 
@@ -30,6 +34,8 @@ public sealed partial class SqlServerIndexProvider
     public async Task<IReadOnlyList<IndexHint>> GetHintsAsync(
         IndexRef index, CancellationToken cancellationToken = default)
     {
+        if (!Permissions.CanViewState) return [];
+
         await UseDatabaseAsync(index.Database, cancellationToken).ConfigureAwait(false);
         var rows = await QueryAsync("index-hints-plancache",
             new Dictionary<string, object?> { ["@IndexName"] = index.Index }, cancellationToken).ConfigureAwait(false);

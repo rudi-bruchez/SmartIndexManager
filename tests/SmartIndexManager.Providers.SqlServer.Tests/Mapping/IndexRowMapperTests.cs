@@ -46,6 +46,7 @@ public class IndexRowMapperTests
     [InlineData(4, IndexType.Spatial)]
     [InlineData(5, IndexType.ClusteredColumnstore)]
     [InlineData(6, IndexType.NonclusteredColumnstore)]
+    [InlineData(7, IndexType.Spatial)]
     public void Maps_type_codes(int code, IndexType expected)
         => Assert.Equal(expected, IndexRowMapper.Map(IndexRow(code), OneKey).Type);
 
