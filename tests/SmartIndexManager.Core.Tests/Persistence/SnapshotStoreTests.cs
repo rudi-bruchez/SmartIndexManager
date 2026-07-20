@@ -51,4 +51,27 @@ public class SnapshotStoreTests : IDisposable
     [Fact]
     public void Oldest_capture_is_null_when_none_exist()
         => Assert.Null(SnapshotStore.OldestCaptureUtc(_root, "PROD01", "Sales"));
+
+    [Fact]
+    public void Read_all_skips_malformed_json_files()
+    {
+        SnapshotStore.Write(_root, Snap(new DateTime(2026, 05, 01, 0, 0, 0, DateTimeKind.Utc)));
+        File.WriteAllText(Path.Combine(_root, "snapshots", "PROD01", "Sales", "bad.json"), "not json");
+
+        var all = SnapshotStore.ReadAll(_root, "PROD01", "Sales");
+        Assert.Single(all);
+    }
+
+    [Fact]
+    public void Purge_skips_malformed_json_files()
+    {
+        SnapshotStore.Write(_root, Snap(new DateTime(2026, 01, 01, 0, 0, 0, DateTimeKind.Utc)));
+        File.WriteAllText(Path.Combine(_root, "snapshots", "PROD01", "Sales", "bad.json"), "not json");
+
+        int purged = SnapshotStore.PurgeOlderThan(_root, "PROD01", "Sales",
+            new DateTime(2026, 03, 01, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal(1, purged);
+        Assert.Empty(SnapshotStore.ReadAll(_root, "PROD01", "Sales"));
+    }
 }

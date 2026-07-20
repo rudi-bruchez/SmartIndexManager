@@ -20,11 +20,23 @@ public static class SnapshotStore
         var dir = DirFor(rootDir, server, database);
         if (!Directory.Exists(dir)) return [];
         return Directory.EnumerateFiles(dir, "*.json")
-            .Select(p => JsonSerializer.Deserialize<UsageSnapshot>(File.ReadAllText(p), CoreJson.Options))
+            .Select(DeserializeOrNull)
             .Where(s => s is not null)
             .Select(s => s!)
             .OrderBy(s => s.CapturedUtc)
             .ToList();
+    }
+
+    private static UsageSnapshot? DeserializeOrNull(string path)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<UsageSnapshot>(File.ReadAllText(path), CoreJson.Options);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     public static DateTime? OldestCaptureUtc(string rootDir, string server, string database)
@@ -40,7 +52,7 @@ public static class SnapshotStore
         int purged = 0;
         foreach (var path in Directory.EnumerateFiles(dir, "*.json").ToList())
         {
-            var snap = JsonSerializer.Deserialize<UsageSnapshot>(File.ReadAllText(path), CoreJson.Options);
+            var snap = DeserializeOrNull(path);
             if (snap is not null && snap.CapturedUtc < cutoffUtc)
             {
                 File.Delete(path);

@@ -18,7 +18,7 @@ public static class DeletionSafetyEvaluator
         var warnings = new List<SafetyWarning>();
         if (inputs.SupportsForeignKey)
             warnings.Add(new SafetyWarning("fk-support", "This index supports a foreign key."));
-        if (index.FilterPredicate is not null)
+        if (!string.IsNullOrWhiteSpace(index.FilterPredicate))
             warnings.Add(new SafetyWarning("filtered", "Filtered index."));
         if (inputs.ReferencedByHint)
             warnings.Add(new SafetyWarning("hint", "Referenced by a hint or plan guide; queries may fail."));

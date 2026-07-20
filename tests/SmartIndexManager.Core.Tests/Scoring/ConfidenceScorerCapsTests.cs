@@ -10,13 +10,13 @@ public class ConfidenceScorerCapsTests
 
     private static ScoreInputs Build(
         bool fk = false, bool hint = false, bool redundant = false,
-        string? filter = null, int uptime = 90, long updates = 0) => new()
+        string? filter = null, int uptime = 90, long updates = 0, long reads = 0) => new()
     {
         Index = new IndexModel
         {
             Database = "db", Schema = "dbo", Table = "T", Name = "IX",
             Type = IndexType.NonclusteredRowstore, FilterPredicate = filter,
-            Usage = new IndexUsageStats(0, 0, 0, updates, null, null)
+            Usage = new IndexUsageStats(reads, 0, 0, updates, null, null)
         },
         InstanceUptimeDays = uptime,
         SupportsForeignKey = fk, ReferencedByHint = hint, IsRedundant = redundant,
@@ -64,5 +64,13 @@ public class ConfidenceScorerCapsTests
         // both FK (40) and filtered (50) apply => 40
         var score = new ConfidenceScorer().Score(Build(fk: true, filter: "x = 1"));
         Assert.Equal(40, score.Value);
+    }
+
+    [Fact]
+    public void Costly_updates_bonus_applies_when_there_are_some_reads()
+    {
+        // base score below 100 because of reads; +10 bonus pushes it up
+        var score = new ConfidenceScorer().Score(Build(reads: 10, updates: 1));
+        Assert.Equal(89, score.Value);
     }
 }

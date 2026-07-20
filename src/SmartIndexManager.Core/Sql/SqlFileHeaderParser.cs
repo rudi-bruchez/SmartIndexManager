@@ -10,7 +10,8 @@ public static class SqlFileHeaderParser
         foreach (var raw in fileContent.Split('\n'))
         {
             var line = raw.Trim();
-            if (!line.StartsWith(Prefix, StringComparison.Ordinal)) continue;
+            if (string.IsNullOrEmpty(line)) continue;
+            if (!line.StartsWith(Prefix, StringComparison.Ordinal)) break;
             var body = line[Prefix.Length..].Trim();
             int eq = body.IndexOf('=');
             if (eq <= 0) throw new SqlFileHeaderException($"malformed metadata line: '{line}'");

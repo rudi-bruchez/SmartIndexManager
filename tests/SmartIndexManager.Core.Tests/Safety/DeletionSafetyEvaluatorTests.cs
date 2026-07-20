@@ -102,4 +102,15 @@ public class DeletionSafetyEvaluatorTests
         Assert.Contains("replication-ag", codes);
         Assert.Contains("short-uptime", codes);
     }
+
+    [Theory]
+    [InlineData("   ")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void Whitespace_filter_predicate_does_not_warn(string? filter)
+    {
+        var a = DeletionSafetyEvaluator.Evaluate(Inputs(Deletable() with { FilterPredicate = filter }));
+        Assert.Equal(DeletionEligibility.Deletable, a.Eligibility);
+        Assert.DoesNotContain(a.Warnings, w => w.Code == "filtered");
+    }
 }

@@ -19,11 +19,11 @@ public sealed class ConfidenceScorer
             value += _options.RedundancyBonus;
             factors.Add(new ScoreFactor("redundant", $"+{_options.RedundancyBonus} redundant with another index"));
         }
-        if (inputs.Index.Usage.Updates > 0 && inputs.Index.Usage.TotalReads == 0)
+        if (inputs.Index.Usage.Updates > 0)
         {
             value += _options.CostlyUpdatesBonus;
             factors.Add(new ScoreFactor("costly-updates",
-                $"+{_options.CostlyUpdatesBonus} {inputs.Index.Usage.Updates} updates with 0 reads"));
+                $"+{_options.CostlyUpdatesBonus} {inputs.Index.Usage.Updates} updates"));
         }
 
         // Caps next: a cap always wins over a bonus.

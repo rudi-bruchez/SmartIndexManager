@@ -13,6 +13,8 @@ public static class SqlServerDdlGenerator
             return new DdlNotBackupable("partitioned index DDL cannot be reconstructed with certainty");
         if (index.Options.Compression == DataCompression.Unsupported)
             return new DdlNotBackupable("unsupported data compression option");
+        if (index.KeyColumns.Count == 0)
+            return new DdlNotBackupable("index has no key columns");
 
         var sb = new StringBuilder();
         sb.Append("CREATE ");

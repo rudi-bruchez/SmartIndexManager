@@ -51,4 +51,36 @@ public class SqlFileHeaderParserTests
         var content = "-- sim: name=x\n-- sim: minversion=abc\n-- sim: columns=A\nSELECT 1;";
         Assert.Throws<SqlFileHeaderException>(() => SqlFileHeaderParser.Parse(content));
     }
+
+    [Fact]
+    public void Azure_unsupported_parses()
+    {
+        var content = "-- sim: name=x\n-- sim: minversion=11.0\n-- sim: azure=unsupported\n-- sim: columns=A\nSELECT 1;";
+        Assert.Equal(AzureSupport.Unsupported, SqlFileHeaderParser.Parse(content).Azure);
+    }
+
+    [Fact]
+    public void Azure_only_parses()
+    {
+        var content = "-- sim: name=x\n-- sim: minversion=11.0\n-- sim: azure=only\n-- sim: columns=A\nSELECT 1;";
+        Assert.Equal(AzureSupport.Only, SqlFileHeaderParser.Parse(content).Azure);
+    }
+
+    [Fact]
+    public void Stops_scanning_at_first_non_metadata_line()
+    {
+        var content = """
+            -- sim: name=x
+            -- sim: minversion=11.0
+            -- sim: azure=unsupported
+            -- sim: columns=A
+            SELECT 1;
+            -- sim: name=y
+            -- sim: columns=B
+            """;
+        var header = SqlFileHeaderParser.Parse(content);
+        Assert.Equal("x", header.Name);
+        Assert.Equal(AzureSupport.Unsupported, header.Azure);
+        Assert.Equal(new[] { "A" }, header.Columns);
+    }
 }

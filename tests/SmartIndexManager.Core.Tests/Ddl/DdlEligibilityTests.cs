@@ -33,6 +33,7 @@ public class DdlEligibilityTests
         Assert.Contains("ALLOW_ROW_LOCKS = OFF", ddl);
         Assert.Contains("ALLOW_PAGE_LOCKS = ON", ddl);
         Assert.Contains("DATA_COMPRESSION = PAGE", ddl);
+        Assert.Contains("IGNORE_DUP_KEY = OFF", ddl);
     }
 
     [Fact]
@@ -85,5 +86,14 @@ public class DdlEligibilityTests
     {
         var index = Base() with { Type = IndexType.Xml };
         Assert.IsType<DdlNotBackupable>(SqlServerDdlGenerator.Generate(index));
+    }
+
+    [Fact]
+    public void Empty_key_columns_is_not_backupable()
+    {
+        var index = Base() with { KeyColumns = [] };
+        var result = SqlServerDdlGenerator.Generate(index);
+        var reason = Assert.IsType<DdlNotBackupable>(result).Reason;
+        Assert.Contains("no key columns", reason, System.StringComparison.OrdinalIgnoreCase);
     }
 }
