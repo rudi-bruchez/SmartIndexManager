@@ -46,6 +46,15 @@ public static class RedundancyAnalyzer
             if (r2 is not null) return r2;
         }
 
+        // R3: same key, same filter, one includes strictly dominates the other
+        if (SameKey(na.Key, nb.Key) && na.Filter == nb.Filter)
+        {
+            if (!ia.IsUnique && na.Includes.IsProperSubsetOf(nb.Includes))
+                return new RedundancyFinding(ia, ib, RedundancyRule.R3DominatedIncludes);
+            if (!ib.IsUnique && nb.Includes.IsProperSubsetOf(na.Includes))
+                return new RedundancyFinding(ib, ia, RedundancyRule.R3DominatedIncludes);
+        }
+
         return null;
     }
 
