@@ -248,7 +248,8 @@ Le rapport est exportable en JSON et en texte (markdown), et il est archivé dan
 
 - Répertoire par session : `<racine>/<serveur>/<horodatage ISO>/`, racine configurable, défaut `Documents/SmartIndexManager/`. Le nom de serveur est assaini pour le système de fichiers (caractères interdits remplacés).
 - Un fichier par index : `<base>.<schéma>.<table>.<index>.sql`, contenant le DDL de recréation complet (colonnes, includes, filtre, unicité, options pertinentes du dictionnaire provider comme fillfactor et compression), précédé d'un en-tête en commentaires : date, serveur, base, opérateur, raison automatique, commentaire libre, statistiques au moment de la suppression.
-- Les composantes du nom de fichier sont assainies : tout caractère ambigu pour le système de fichiers ou pour le délimiteur (point, crochets, barres, espaces, caractères interdits) est remplacé par un tiret bas. Le nom de fichier n'est donc pas réversible ; les identifiants réels et exacts vivent dans l'en-tête du fichier et dans le champ `file` du manifeste, qui fait foi (l'écran de restauration lit le manifeste, jamais le nom de fichier).
+- Le point reste le séparateur entre les quatre composantes (`<base>.<schéma>.<table>.<index>`). L'assainissement se fait à l'intérieur de chaque composante : tout caractère interdit par le système de fichiers ou ambigu avec le séparateur (point, crochets, barres, espaces) est remplacé par un tiret bas. Exemple d'un index dont la table s'appelle `Orders.2024` : `Sales.dbo.Orders_2024.IX_Legacy.sql`. Le nom de fichier n'est donc pas réversible vers les identifiants d'origine ; ceux-ci, exacts, vivent dans l'en-tête du fichier et dans les champs `database`, `schema`, `table`, `index` du manifeste.
+- Le champ `file` du manifeste contient le nom de fichier physique (assaini) ; l'écran de restauration retrouve le fichier par convention, dans le même répertoire que le manifeste. Il ne reconstruit jamais le nom à partir des identifiants et ne parse jamais le nom de fichier pour retrouver les identifiants.
 - Le script global de suppression (mode génération) est écrit dans le même répertoire : `drop-session.sql`.
 
 ### `manifest.json`
@@ -296,7 +297,7 @@ Objectif : atténuer la volatilité des DMV sans rien installer côté serveur.
 - Quand : automatiquement à chaque connexion à une base, après la collecte des métadonnées.
 - Quoi : par index, les compteurs d'usage (seeks, scans, lookups, updates, dates de dernier usage) plus l'uptime de l'instance au moment de la capture.
 - Où : répertoire de configuration de l'application (emplacement standard par plateforme : `ApplicationData` sur Windows, `XDG_CONFIG_HOME` sur Linux, `~/Library/Application Support` sur macOS), sous `snapshots/<serveur>/<base>/<horodatage>.json`.
-- Format : JSON, une capture par fichier, avec un champ `schemaVersion` pour anticiper les évolutions de format. Une rétention configurable (défaut 90 jours) supprime les captures anciennes.
+- Format : JSON, une capture par fichier, avec un champ `schemaVersion` pour anticiper les évolutions de format. Une rétention configurable (défaut 90 jours) supprime les captures anciennes. Cette purge est un ménage local : elle n'entre pas dans le journal d'audit (réservé aux actions sensibles côté serveur) mais est tracée dans le log applicatif.
 
 Dans le MVP, l'outil capture et affiche seulement la date de la capture la plus ancienne disponible (« observé depuis le ... ») dans le panneau détail. La comparaison entre captures et la détection d'usage intermittent arrivent en v1.x, l'analyse de tendance en v2. Le format de fichier est conçu pour rester lisible par ces versions.
 
@@ -349,8 +350,8 @@ L'activation est journalisée dans l'audit.
 
 - C#, .NET 10.
 - Avalonia 11 (Windows, Linux, macOS).
-- CommunityToolkit.Mvvm pour le MVVM.
-- `Microsoft.Data.SqlClient` (auth Windows, SQL, Entra ID interactif).
+- CommunityToolkit.Mvvm pour le MVVM (version 8 minimum, dernière stable compatible .NET 10 retenue à l'implémentation).
+- `Microsoft.Data.SqlClient` (auth Windows, SQL, Entra ID interactif ; version 6 minimum, dernière stable compatible .NET 10 retenue à l'implémentation).
 - `Microsoft.Extensions.DependencyInjection` pour l'injection de dépendances dans les trois couches.
 - Tests : xUnit. Le Core est testable sans base : normalisation et règles de redondance, calcul de score, génération de DDL, parsing des en-têtes de fichiers SQL, lecture et écriture des manifestes et snapshots. Tests d'intégration provider avec Testcontainers (SQL Server en conteneur) ; ils sont ignorés automatiquement si Docker n'est pas disponible, et leur exécution en CI est prise en charge par l'utilisateur.
 - Structure de la solution :
