@@ -1,3 +1,62 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+SmartIndexManager is a cross-platform Avalonia desktop tool for DBAs to manage SQL Server indexes: list indexes, see which are actually used, and drop the ones that are safe to remove, with guardrails, a dry-run impact report, systematic DDL backup, and integrated restore. SQL Server is the first engine; the provider architecture is designed so PostgreSQL and others can follow. .NET 10, C#, `Nullable` and `ImplicitUsings` enabled everywhere.
+
+Design is fully specified in `docs/specs/2026-07-20-smartindexmanager-design.md` (French, authoritative). Per-area implementation plans and locked API contracts live in `docs/plans/`. When intended behavior is unclear, the spec wins over inference from partial code.
+
+## Build, test, run
+
+```bash
+dotnet build SmartIndexManager.sln               # build everything
+dotnet test                                      # run all test projects
+dotnet run --project src/SmartIndexManager.App   # launch the GUI
+
+# Single test project
+dotnet test tests/SmartIndexManager.Core.Tests
+
+# Single test class or method (xUnit filter)
+dotnet test --filter "FullyQualifiedName~RedundancyR1Tests"
+dotnet test --filter "DisplayName~drops_a_safe_index"
+```
+
+There is no `Directory.Build.props`, `global.json`, or separate lint step; the SDK-default analyzers and a zero-warning compiler are the bar. The `read` shell builtin is shadowed by an RTK alias in this environment, so prefer the Read tool over bash `cat`/`read` loops.
+
+## Architecture
+
+Three strictly separated layers; dependencies flow downward only:
+
+- `src/SmartIndexManager.Core` : domain model, redundancy engine, confidence scoring, DDL generation, safety evaluation, snapshots, manifests, audit, and the SQL-file header parser. No UI, no `SqlClient`, no database I/O. Everything here is unit-testable without a server.
+- `src/SmartIndexManager.Providers.SqlServer` : the `IIndexProvider` implementation. Connects, runs the external SQL files, maps result rows to the common model. Depends on Core only. A future `Providers.PostgreSql` follows the same contract.
+- `src/SmartIndexManager.App` : Avalonia 11 UI, CommunityToolkit.Mvvm ViewModels, DI via `Microsoft.Extensions.DependencyInjection`. Consumes Core through interfaces; the provider is injected via `IIndexProviderFactory`.
+
+Hard design constraint: every feature must be reachable from an xUnit test or a future CLI without instantiating the UI. Keep logic out of ViewModels and code-behind when it belongs in Core or a service.
+
+The provider (`SqlServerIndexProvider`) is split across partial-class files by concern: `.cs` (ctor/state), `.Indexes.cs`, `.Diagnostics.cs`, `.Actions.cs` (DROP, Query Store enable). `ISqlExecutor` / `SqlClientExecutor` is the seam that lets tests fake the database.
+
+## Rules that are easy to get wrong
+
+External SQL files are the only source of queries. Every server query lives in `sql/sqlserver/<name>.sql`. There is no embedded fallback by design: a missing, unreadable, or invalid file marks that one feature as errored (with an explicit message) and must not crash the app. `SqlScriptLoader.Load` requires the file's `-- sim: name=` header to match the logical name it is loaded as. Columns are read by name (from the `-- sim: columns=` header), never by position. Parameters go through named `SqlCommand` parameters (`@SchemaName`, ...), never string concatenation. When adding a query, add both the `.sql` file (with header) and an `InlineData` case in `ScriptContractTests`.
+
+Capabilities, not versions. Feature availability is decided via `ProviderCapabilities` (`SupportsQueryStore`, `RequiresDatabaseScopedDmv` for Azure, and so on). Never branch on a raw SQL Server version number in Core or App.
+
+Deletion safety is layered. Core's `DeletionSafetyEvaluator` decides eligibility; the provider's `DropIndexAsync` re-validates with `index-droppable-check.sql` as defense-in-depth before issuing `DROP INDEX`. Only plain nonclustered rowstore non-unique indexes on user tables are droppable. Clustered, columnstore, XML, spatial, fulltext, unique (with or without constraint), PK, disabled, hypothetical, and system indexes are hard-excluded and cannot enter the deletion basket.
+
+Recreation DDL is generated in C# (`SqlServerDdlGenerator`), not by a SQL query, so it stays deterministic and testable without a database. An index whose DDL cannot be guaranteed (partitioning, unsupported options) is refused for deletion.
+
+Single connection, no MARS. The SQL Server provider uses one connection without Multiple Active Result Sets, so overlapping commands break it. Detail loads in `MainWindowViewModel` are serialized with a `SemaphoreSlim(1,1)` gate: cancel any in-flight load, acquire the gate, re-check state after the wait, run, release in `finally`. Preserve this pattern when touching detail or async-load code.
+
+Secrets. SQL passwords are never persisted in any form; they are prompted on each connect. Do not add password storage.
+
+Snapshots are keyed by server instance name then database: `<configDir>/snapshots/<server>/<database>/<timestamp>.json`, where server is `provider.ServerInfo.ServerName`, not the database name. At runtime `SqlScriptRoot` resolves to `AppContext.BaseDirectory/sql/sqlserver`; tests walk up the tree to the repo-root `sql/sqlserver`.
+
+## Testing
+
+xUnit across all three test projects. Core and App tests need no database. Provider integration tests use Testcontainers (`Testcontainers.MsSql`) and are gated by `[RequiresDockerFact]`, which auto-skips when `docker info` fails, so `dotnet test` is green without Docker. Provider unit tests (`tests/.../Unit/`) exercise gates and guards through `RecordingExecutor` with no container. The provider project exposes internals to its test project via `InternalsVisibleTo`.
+
 <!-- rtk-instructions v2 -->
 # RTK (Rust Token Killer) - Token-Optimized Commands
 
