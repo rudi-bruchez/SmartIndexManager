@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             x:Class="SmartIndexManager.App.Views.IndexGridView"
+             x:DataType="vm:IndexGridViewModel">
+    <DockPanel>
+        <TextBox DockPanel.Dock="Top" Watermark="Filter" Text="{Binding FilterText}" Margin="4" />
+        <DataGrid ItemsSource="{Binding View}" SelectedItem="{Binding SelectedRow}"
+                  IsReadOnly="True" CanUserSortColumns="True" CanUserReorderColumns="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Database" Binding="{Binding Database}" />
+                <DataGridTextColumn Header="Schema"   Binding="{Binding Schema}" />
+                <DataGridTextColumn Header="Table"    Binding="{Binding Table}" />
+                <DataGridTextColumn Header="Index"    Binding="{Binding Name}" />
+                <DataGridTextColumn Header="Type"     Binding="{Binding Type}" />
+                <DataGridTextColumn Header="Key"      Binding="{Binding KeySummary}" />
+                <DataGridTextColumn Header="Includes" Binding="{Binding IncludeSummary}" />
+                <DataGridTextColumn Header="Size MB"  Binding="{Binding SizeMb}" />
+                <DataGridTextColumn Header="Seeks"    Binding="{Binding Seeks}" />
+                <DataGridTextColumn Header="Scans"    Binding="{Binding Scans}" />
+                <DataGridTextColumn Header="Updates"  Binding="{Binding Updates}" />
+                <DataGridTextColumn Header="Score"    Binding="{Binding Score}" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

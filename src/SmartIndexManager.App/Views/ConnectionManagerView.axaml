@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             x:Class="SmartIndexManager.App.Views.ConnectionManagerView"
+             x:DataType="vm:ConnectionManagerViewModel">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+        <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding Selected}"
+                  DisplayMemberBinding="{Binding Name}" MinWidth="180" />
+        <TextBox Watermark="Databases (comma separated)" Text="{Binding DatabasesText}" MinWidth="240" />
+        <Button Content="Add" Command="{Binding AddCommand}" />
+        <Button Content="Save" Command="{Binding SaveCommand}" />
+        <Button Content="Connect" Command="{Binding ConnectCommand}" />
+    </StackPanel>
+</UserControl>

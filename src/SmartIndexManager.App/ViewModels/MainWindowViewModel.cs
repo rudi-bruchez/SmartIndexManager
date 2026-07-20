@@ -19,6 +19,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public ConnectionManagerViewModel Connections { get; }
     public IndexGridViewModel Grid { get; }
     public PermissionStatusViewModel Permissions { get; }
+    public IIndexProvider? CurrentProvider => _load.CurrentProvider;
 
     public MainWindowViewModel(
         IIndexLoadService load, IPasswordPrompt prompt,

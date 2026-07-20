@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+        xmlns:views="clr-namespace:SmartIndexManager.App.Views"
+        x:Class="SmartIndexManager.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1200" Height="800" Title="SmartIndexManager">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8">
+            <ComboBox ItemsSource="{Binding Connections.Profiles}" SelectedItem="{Binding Connections.Selected}"
+                      DisplayMemberBinding="{Binding Name}" MinWidth="180" />
+            <TextBox Watermark="Databases (comma separated)" Text="{Binding Connections.DatabasesText}" MinWidth="240" />
+            <Button Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsBusy}" />
+            <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Width="120" />
+        </StackPanel>
+        <views:PermissionStatusBar DockPanel.Dock="Bottom" DataContext="{Binding Permissions}" />
+        <Grid ColumnDefinitions="2*,Auto,1*">
+            <views:IndexGridView Grid.Column="0" DataContext="{Binding Grid}" x:Name="GridView" />
+            <GridSplitter Grid.Column="1" Width="4" />
+            <views:IndexDetailView Grid.Column="2" x:Name="Detail" />
+        </Grid>
+    </DockPanel>
+</Window>

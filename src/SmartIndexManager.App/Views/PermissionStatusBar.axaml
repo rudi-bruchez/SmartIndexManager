@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             x:Class="SmartIndexManager.App.Views.PermissionStatusBar"
+             x:DataType="vm:PermissionStatusViewModel">
+    <StackPanel Orientation="Horizontal" Spacing="12" Margin="8,4">
+        <ItemsControl ItemsSource="{Binding Messages}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="12" /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate><TextBlock Text="{Binding}" Foreground="#B5651D" /></DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

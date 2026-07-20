@@ -18,6 +18,7 @@ public static class ServiceRegistration
         services.AddSingleton<ILocalizer, ResxLocalizer>();
         services.AddSingleton<IAuthAvailability>(_ => AuthAvailability.ForCurrentOs());
         services.AddSingleton<IIndexLoadService, IndexLoadService>();
+        services.AddSingleton<IThemeService, ThemeService>();
         services.AddTransient<ConnectionManagerViewModel>();
         services.AddSingleton<IndexGridViewModel>();
         services.AddSingleton<PermissionStatusViewModel>();

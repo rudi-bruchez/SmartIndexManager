@@ -15,6 +15,8 @@ public sealed class IndexLoadService : IIndexLoadService
     private readonly IAppPaths _paths;
     private readonly ConfidenceScorer _scorer = new();
 
+    public IIndexProvider? CurrentProvider { get; private set; }
+
     public IndexLoadService(IIndexProviderFactory factory, IAppPaths paths)
     {
         _factory = factory;
@@ -26,7 +28,14 @@ public sealed class IndexLoadService : IIndexLoadService
         IReadOnlyList<string> databases, CancellationToken cancellationToken)
     {
         var request = ToRequest(profile);
-        await using var provider = await _factory.ConnectAsync(request, password, cancellationToken).ConfigureAwait(false);
+        if (CurrentProvider is not null)
+        {
+            await CurrentProvider.DisposeAsync().ConfigureAwait(false);
+            CurrentProvider = null;
+        }
+
+        var provider = await _factory.ConnectAsync(request, password, cancellationToken).ConfigureAwait(false);
+        CurrentProvider = provider;
 
         var indexes = await provider.GetIndexesAsync(databases, cancellationToken).ConfigureAwait(false);
 
