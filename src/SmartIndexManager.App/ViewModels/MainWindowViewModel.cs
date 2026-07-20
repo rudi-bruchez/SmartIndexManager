@@ -9,7 +9,6 @@ namespace SmartIndexManager.App.ViewModels;
 public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IIndexLoadService _load;
-    private readonly IIndexProviderFactory _factory;
     private readonly IPasswordPrompt _prompt;
     private readonly IAppPaths _paths;
     private readonly ILocalizer _loc;
@@ -31,12 +30,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     public MainWindowViewModel(
-        IIndexLoadService load, IIndexProviderFactory factory, IPasswordPrompt prompt,
+        IIndexLoadService load, IPasswordPrompt prompt,
         ConnectionManagerViewModel connections, IndexGridViewModel grid,
         PermissionStatusViewModel permissions, IAppPaths paths, ILocalizer loc)
     {
         _load = load;
-        _factory = factory;
         _prompt = prompt;
         _paths = paths;
         _loc = loc;
