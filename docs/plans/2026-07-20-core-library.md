@@ -219,9 +219,17 @@ public sealed record IndexModel
     public bool IsOnView { get; init; }
     public bool IsOnSystemTable { get; init; }
     public bool IsPartitioned { get; init; }
+    // Filegroup or partition-scheme name the index lives on. Emitted as ON [DataSpace]
+    // so a restore recreates the index on its original filegroup, not the default.
+    // Null means the default filegroup (no ON clause emitted).
+    public string? DataSpace { get; init; }
     public IndexUsageStats Usage { get; init; } = IndexUsageStats.Empty;
     public IndexSizeInfo Size { get; init; } = IndexSizeInfo.Empty;
     public IndexOptions Options { get; init; } = new();
+    // MVP simplification: provider-specific properties are display-only strings.
+    // The Core never reasons on them (only on the common properties above), so a
+    // string map is enough for the MVP. If a later version needs typed values, widen
+    // to a small union type then; do not pre-generalize now (YAGNI).
     public IReadOnlyDictionary<string, string> ProviderProperties { get; init; }
         = new Dictionary<string, string>();
 }
@@ -392,14 +400,16 @@ public static partial class IndexNormalizer
         return new NormalizedIndex(key, includes, NormalizeFilter(index.FilterPredicate), index.IsUnique);
     }
 
-    // Syntactic normalization only: lower-case, collapse whitespace, strip brackets
-    // and fully-enclosing redundant parentheses. Two logically equivalent predicates
-    // written differently are NOT unified (documented false negative).
+    // Syntactic normalization only: lower-case, collapse whitespace, strip
+    // fully-enclosing redundant parentheses. Brackets are deliberately NOT stripped:
+    // removing them could unify two genuinely different predicates (for example a
+    // LIKE '[0-9]%' character class), which would be a false positive. The invariant
+    // is "fewer redundancies reported, never a false one", so bracketed and
+    // unbracketed identifiers stay distinct (a safe false negative).
     public static string? NormalizeFilter(string? predicate)
     {
         if (string.IsNullOrWhiteSpace(predicate)) return null;
         var s = predicate.ToLowerInvariant();
-        s = s.Replace("[", "").Replace("]", "");
         s = Whitespace().Replace(s, " ").Trim();
         s = StripEnclosingParens(s);
         return s;
@@ -524,6 +534,14 @@ public class RedundancyR1Tests
         var b = Nc("IX_B", ["CustomerId"]) with { Table = "Customers" };
         Assert.Empty(RedundancyAnalyzer.Analyze([a, b]));
     }
+
+    [Fact]
+    public void Disabled_indexes_are_excluded_from_analysis()
+    {
+        var a = Nc("IX_A", ["CustomerId"]) with { IsDisabled = true };
+        var b = Nc("IX_B", ["CustomerId"]);
+        Assert.Empty(RedundancyAnalyzer.Analyze([a, b]));
+    }
 }
 ```
 
@@ -565,7 +583,8 @@ public static class RedundancyAnalyzer
     {
         var findings = new List<RedundancyFinding>();
         var groups = indexes
-            .Where(i => i.Type == IndexType.NonclusteredRowstore)
+            // Disabled indexes serve no query; comparing them would be misleading.
+            .Where(i => i.Type == IndexType.NonclusteredRowstore && !i.IsDisabled)
             .GroupBy(i => (i.Database, i.Schema, i.Table),
                      TupleComparer.CaseInsensitive);
 
@@ -762,7 +781,9 @@ In `RedundancyAnalyzer.cs`, replace the body of `Compare` with:
 
     // Is `shorter` redundant against `longer`? shorter.Key strict prefix of longer.Key
     // (same directions on the prefix) and shorter.Includes subset of (longer.Key columns
-    // beyond the prefix union longer.Includes).
+    // beyond the prefix union longer.Includes). Only `shorter` is ever flagged, and only
+    // when it is non-unique; `longer` may be unique (we keep it, which is correct). The UI
+    // wording should make clear the covering index is the one being kept, not dropped.
     private static RedundancyFinding? TryCoveredPrefix(
         IndexModel shorter, NormalizedIndex ns, IndexModel longer, NormalizedIndex nl)
     {
@@ -1467,6 +1488,29 @@ public class DdlEligibilityTests
     }
 
     [Fact]
+    public void Emits_on_filegroup_when_dataspace_is_set()
+    {
+        var ddl = Assert.IsType<DdlSuccess>(
+            SqlServerDdlGenerator.Generate(Base() with { DataSpace = "FG_Archive" })).Sql;
+        Assert.Contains("ON [FG_Archive]", ddl);
+    }
+
+    [Fact]
+    public void Omits_on_clause_on_default_filegroup()
+    {
+        var ddl = Assert.IsType<DdlSuccess>(SqlServerDdlGenerator.Generate(Base())).Sql;
+        // Base() has no DataSpace; only the ON <schema>.<table> target clause is present
+        Assert.Equal(1, Occurrences(ddl, " ON "));
+    }
+
+    private static int Occurrences(string haystack, string needle)
+    {
+        int count = 0, i = 0;
+        while ((i = haystack.IndexOf(needle, i, System.StringComparison.Ordinal)) >= 0) { count++; i += needle.Length; }
+        return count;
+    }
+
+    [Fact]
     public void Partitioned_index_is_not_backupable()
     {
         var result = SqlServerDdlGenerator.Generate(Base() with { IsPartitioned = true });
@@ -1526,6 +1570,9 @@ Replace the top of `Generate` (before building the string) with the guards, and 
             sb.Append(" WHERE ").Append(index.FilterPredicate);
 
         sb.Append(BuildOptions(index.Options));
+
+        if (!string.IsNullOrWhiteSpace(index.DataSpace))
+            sb.Append(" ON ").Append(Quote(index.DataSpace));
 
         sb.Append(';');
         return new DdlSuccess(sb.ToString());
@@ -2027,7 +2074,8 @@ public class ManifestStoreTests : IDisposable
 
         var text = File.ReadAllText(path);
         Assert.Contains("\"schemaVersion\": 1", text);
-        Assert.Contains("\"status\": \"Dropped\"", text);
+        Assert.Contains("\"status\": \"dropped\"", text);   // camelCase, matches design spec section 9
+        Assert.Contains("\"mode\": \"execute\"", text);
 
         var read = ManifestStore.Read(path);
         Assert.Equal("PROD01", read.Server);
@@ -2061,11 +2109,14 @@ namespace SmartIndexManager.Core.Persistence;
 
 public static class CoreJson
 {
+    // Enum values are camelCased to match the manifest example in the design spec
+    // (section 9 shows "status": "dropped", "mode": "execute"). PropertyNamingPolicy
+    // alone does NOT affect enum string values; the converter needs its own policy.
     public static JsonSerializerOptions Options { get; } = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
         DefaultIgnoreCondition = JsonIgnoreCondition.Never
     };
 }
@@ -2126,7 +2177,11 @@ namespace SmartIndexManager.Core.Persistence;
 public static class ManifestStore
 {
     public static void Write(string path, Manifest manifest)
-        => File.WriteAllText(path, JsonSerializer.Serialize(manifest, CoreJson.Options));
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        File.WriteAllText(path, JsonSerializer.Serialize(manifest, CoreJson.Options));
+    }
 
     public static Manifest Read(string path)
         => JsonSerializer.Deserialize<Manifest>(File.ReadAllText(path), CoreJson.Options)
@@ -2163,6 +2218,8 @@ git commit -m "feat(core): manifest model, JSON store, and restore marking"
 ---
 
 ### Task 13: Snapshot store, retention, and observed-since
+
+> PREREQUISITE: complete Task 14 (`FileNameSanitizer`) before this task. `SnapshotStore` reuses `FileNameSanitizer.SanitizeComponent` for its `server` and `database` directory names. Task 14 is the only backward dependency in this plan; if executing task-by-task, run Task 14 first, then Task 13.
 
 **Files:**
 - Create: `src/SmartIndexManager.Core/Persistence/UsageSnapshot.cs`, `SnapshotStore.cs`
@@ -2332,7 +2389,7 @@ public static class SnapshotStore
 }
 ```
 
-Note: this task references `SmartIndexManager.Core.Backup.FileNameSanitizer`, created in Task 14. If executing strictly in order, implement Task 14's `FileNameSanitizer` first, or add it as a stub here and complete it in Task 14. Recommended: swap the order and do Task 14 before Task 13. The plan keeps this note explicit rather than hiding the dependency.
+Note: this task references `SmartIndexManager.Core.Backup.FileNameSanitizer` from Task 14 (see the prerequisite callout at the top of this task). Task 14 must be built first.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -2433,7 +2490,28 @@ public class BackupWriterTests : IDisposable
         var content = File.ReadAllText(Path.Combine(_dir, fileName));
         Assert.Contains("-- Server: PROD01", content);
         Assert.Contains("-- Reason: 0 reads in 92 days", content);
+        Assert.Contains("-- LastRead (UTC): never", content);
         Assert.Contains("CREATE NONCLUSTERED INDEX [IX_Legacy]", content);
+    }
+
+    [Fact]
+    public void Colliding_names_get_a_numeric_suffix_and_never_overwrite()
+    {
+        // Two distinct index names that sanitize to the same file name.
+        var a = new IndexModel { Database = "Sales", Schema = "dbo", Table = "Orders", Name = "IX.A", Type = IndexType.NonclusteredRowstore };
+        var b = new IndexModel { Database = "Sales", Schema = "dbo", Table = "Orders", Name = "IX_A", Type = IndexType.NonclusteredRowstore };
+        var header = new BackupHeaderInfo
+        {
+            DateUtc = new DateTime(2026, 07, 20, 10, 0, 0, DateTimeKind.Utc),
+            Server = "PROD01", Database = "Sales", Operator = "op", Reason = "r", Stats = IndexUsageStats.Empty
+        };
+
+        var first = BackupWriter.WriteIndexBackup(_dir, a, "CREATE ... [IX.A];", header);
+        var second = BackupWriter.WriteIndexBackup(_dir, b, "CREATE ... [IX_A];", header);
+
+        Assert.Equal("Sales.dbo.Orders.IX_A.sql", first);
+        Assert.Equal("Sales.dbo.Orders.IX_A (2).sql", second);
+        Assert.Contains("[IX.A]", File.ReadAllText(Path.Combine(_dir, first)));   // first not overwritten
     }
 }
 ```
@@ -2496,8 +2574,9 @@ public static class BackupWriter
     public static string WriteIndexBackup(string sessionDir, IndexModel index, string ddl, BackupHeaderInfo header)
     {
         Directory.CreateDirectory(sessionDir);
-        var fileName = FileNameSanitizer.BuildIndexBackupFileName(
+        var baseName = FileNameSanitizer.BuildIndexBackupFileName(
             index.Database, index.Schema, index.Table, index.Name);
+        var fileName = ResolveCollision(sessionDir, baseName);
 
         var sb = new StringBuilder();
         sb.AppendLine($"-- Date (UTC): {header.DateUtc:O}");
@@ -2510,12 +2589,33 @@ public static class BackupWriter
             sb.AppendLine($"-- Comment: {header.Comment}");
         sb.AppendLine($"-- Stats: seeks={header.Stats.Seeks} scans={header.Stats.Scans} " +
                       $"lookups={header.Stats.Lookups} updates={header.Stats.Updates}");
+        sb.AppendLine($"-- LastRead (UTC): {Fmt(header.Stats.LastRead)} " +
+                      $"LastWrite (UTC): {Fmt(header.Stats.LastWrite)}");
         sb.AppendLine();
         sb.AppendLine(ddl);
 
         File.WriteAllText(Path.Combine(sessionDir, fileName), sb.ToString());
-        return fileName;
+        return fileName;   // the manifest 'file' field stores exactly this resolved name
     }
+
+    // Sanitization is not reversible, so two distinct indexes can map to the same
+    // base name. A backup .sql is the only recovery artifact, so never overwrite:
+    // append " (2)", " (3)", ... before the extension.
+    private static string ResolveCollision(string sessionDir, string baseName)
+    {
+        var path = Path.Combine(sessionDir, baseName);
+        if (!File.Exists(path)) return baseName;
+
+        var stem = Path.GetFileNameWithoutExtension(baseName);
+        var ext = Path.GetExtension(baseName);
+        for (int n = 2; ; n++)
+        {
+            var candidate = $"{stem} ({n}){ext}";
+            if (!File.Exists(Path.Combine(sessionDir, candidate))) return candidate;
+        }
+    }
+
+    private static string Fmt(DateTime? value) => value?.ToString("O") ?? "never";
 }
 ```
 
@@ -2617,7 +2717,7 @@ public static class AuditLog
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
-        Converters = { new JsonStringEnumConverter() }
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     public static void Append(string logFilePath, AuditEntry entry)
@@ -2627,13 +2727,20 @@ public static class AuditLog
         File.AppendAllText(logFilePath, line + Environment.NewLine, Encoding.UTF8);
     }
 
+    // A corrupt or truncated line must not stop the rest of the log from being read.
     public static IReadOnlyList<AuditEntry> Read(string logFilePath)
     {
         if (!File.Exists(logFilePath)) return [];
-        return File.ReadAllLines(logFilePath)
-            .Where(l => !string.IsNullOrWhiteSpace(l))
-            .Select(l => JsonSerializer.Deserialize<AuditEntry>(l, LineOptions)!)
-            .ToList();
+        var entries = new List<AuditEntry>();
+        foreach (var line in File.ReadAllLines(logFilePath))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            AuditEntry? entry;
+            try { entry = JsonSerializer.Deserialize<AuditEntry>(line, LineOptions); }
+            catch (JsonException) { continue; }
+            if (entry is not null) entries.Add(entry);
+        }
+        return entries;
     }
 }
 ```
