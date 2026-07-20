@@ -16,6 +16,7 @@ public static class ServiceRegistration
         services.AddSingleton<IConnectionStore, ConnectionStore>();
         services.AddSingleton<ILocalizer, ResxLocalizer>();
         services.AddSingleton<IAuthAvailability>(_ => AuthAvailability.ForCurrentOs());
+        services.AddSingleton<IIndexLoadService, IndexLoadService>();
         return services;
     }
 }
