@@ -35,10 +35,39 @@ public static class RedundancyAnalyzer
         if (SameKey(na.Key, nb.Key) && na.Filter == nb.Filter && na.Includes.SetEquals(nb.Includes))
         {
             var (redundant, coveredBy) = ChooseKeeper(ia, ib);
-            if (redundant is null) return null; // both unique => never flag
+            if (redundant is null) return null;
             return new RedundancyFinding(redundant, coveredBy!, RedundancyRule.R1ExactDuplicate);
         }
+
+        // R2: one key is a strict prefix of the other, same filter, shorter's includes covered
+        if (na.Filter == nb.Filter)
+        {
+            var r2 = TryCoveredPrefix(ia, na, ib, nb) ?? TryCoveredPrefix(ib, nb, ia, na);
+            if (r2 is not null) return r2;
+        }
+
         return null;
+    }
+
+    // Is `shorter` redundant against `longer`? shorter.Key strict prefix of longer.Key
+    // (same directions on the prefix) and shorter.Includes subset of (longer.Key columns
+    // beyond the prefix union longer.Includes). Only `shorter` is ever flagged, and only
+    // when it is non-unique; `longer` may be unique (we keep it, which is correct). The UI
+    // wording should make clear the covering index is the one being kept, not dropped.
+    private static RedundancyFinding? TryCoveredPrefix(
+        IndexModel shorter, NormalizedIndex ns, IndexModel longer, NormalizedIndex nl)
+    {
+        if (shorter.IsUnique) return null;
+        if (ns.Key.Count >= nl.Key.Count) return null;
+        for (int i = 0; i < ns.Key.Count; i++)
+            if (ns.Key[i] != nl.Key[i]) return null;
+
+        var covered = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = ns.Key.Count; i < nl.Key.Count; i++) covered.Add(nl.Key[i].Column);
+        foreach (var inc in nl.Includes) covered.Add(inc);
+
+        if (!ns.Includes.IsSubsetOf(covered)) return null;
+        return new RedundancyFinding(shorter, longer, RedundancyRule.R2CoveredPrefix);
     }
 
     // Returns (indexToDrop, indexToKeep). Null indexToDrop means neither may be dropped.
