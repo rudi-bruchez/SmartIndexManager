@@ -12,13 +12,15 @@ public sealed partial class ConnectionSessionViewModel : ViewModelBase, IAsyncDi
     private readonly IPasswordPrompt _prompt;
     private readonly IDialogService _dialogs;
     private readonly ILocalizer _loc;
+    private readonly SemaphoreSlim _connectGate = new(1, 1);
+    private readonly object _ctsLock = new();
     private CancellationTokenSource? _cts;
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _isConnected;
     [ObservableProperty] private string? _statusMessage;
+    [ObservableProperty] private IIndexProvider? _activeProvider;
 
-    public IIndexProvider? ActiveProvider { get; private set; }
     public ConnectionManagerViewModel Connections { get; }
 
     public event Func<LoadResult, Task>? Connected;
@@ -46,43 +48,80 @@ public sealed partial class ConnectionSessionViewModel : ViewModelBase, IAsyncDi
             : null;
         if (profile.Auth == AuthMode.SqlLogin && password is null) return;
 
-        await TearDownAsync().ConfigureAwait(true);
+        CancellationTokenSource cts;
+        lock (_ctsLock)
+        {
+            _cts?.Cancel();
+            cts = new CancellationTokenSource();
+            _cts = cts;
+        }
 
-        _cts = new CancellationTokenSource();
-        IsBusy = true;
-        StatusMessage = _loc["Action_Connect"];
+        await _connectGate.WaitAsync().ConfigureAwait(true);
         try
         {
-            var result = await _load.LoadAsync(profile, password, Connections.SelectedDatabases, _cts.Token).ConfigureAwait(true);
-            ActiveProvider = result.Provider;
-            IsConnected = true;
-            StatusMessage = result.Server.ServerName;
-            if (Connected is not null) await Connected(result).ConfigureAwait(true);
-        }
-        catch (OperationCanceledException)
-        {
-            StatusMessage = _loc["Action_Cancel"];
-        }
-        catch (Exception)
-        {
-            StatusMessage = _loc["Connection_Error"];
+            if (cts.IsCancellationRequested) return;
+
+            await TearDownAsync().ConfigureAwait(true);
+
+            IsBusy = true;
+            StatusMessage = _loc["Action_Connect"];
+            try
+            {
+                var result = await _load.LoadAsync(profile, password, Connections.SelectedDatabases, cts.Token).ConfigureAwait(true);
+                ActiveProvider = result.Provider;
+                IsConnected = true;
+                StatusMessage = result.Server.ServerName;
+                if (Connected is not null) await Connected(result).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+                StatusMessage = _loc["Action_Cancel"];
+            }
+            catch (Exception)
+            {
+                StatusMessage = _loc["Connection_Error"];
+            }
+            finally
+            {
+                IsBusy = false;
+                lock (_ctsLock)
+                {
+                    cts.Dispose();
+                    if (ReferenceEquals(_cts, cts)) _cts = null;
+                }
+            }
         }
         finally
         {
-            IsBusy = false;
-            _cts.Dispose();
-            _cts = null;
+            _connectGate.Release();
         }
     }
 
     [RelayCommand]
-    private async Task DisconnectAsync() => await TearDownAsync().ConfigureAwait(true);
+    private async Task DisconnectAsync()
+    {
+        CancelCore();
+        await _connectGate.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            await TearDownAsync().ConfigureAwait(true);
+        }
+        finally
+        {
+            _connectGate.Release();
+        }
+    }
 
     [RelayCommand]
-    private void Cancel() => _cts?.Cancel();
+    private void Cancel() => CancelCore();
 
     [RelayCommand]
     private async Task ManageAsync() => await _dialogs.ShowConnectionManagerAsync(Connections).ConfigureAwait(true);
+
+    private void CancelCore()
+    {
+        lock (_ctsLock) { _cts?.Cancel(); }
+    }
 
     private async Task TearDownAsync()
     {
@@ -93,5 +132,12 @@ public sealed partial class ConnectionSessionViewModel : ViewModelBase, IAsyncDi
         IsConnected = false;
     }
 
-    public async ValueTask DisposeAsync() => await TearDownAsync().ConfigureAwait(true);
+    public async ValueTask DisposeAsync()
+    {
+        CancelCore();
+        await _connectGate.WaitAsync().ConfigureAwait(true);
+        try { await TearDownAsync().ConfigureAwait(true); }
+        finally { _connectGate.Release(); }
+        _connectGate.Dispose();
+    }
 }

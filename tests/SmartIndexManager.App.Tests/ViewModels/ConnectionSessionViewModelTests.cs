@@ -29,6 +29,109 @@ public class ConnectionSessionViewModelTests : IDisposable
             => throw new InvalidOperationException("connection refused");
     }
 
+    private sealed class DelegateFactory : IIndexProviderFactory
+    {
+        private readonly Func<ConnectionRequest, string?, CancellationToken, Task<IIndexProvider>> _connect;
+        public DelegateFactory(Func<ConnectionRequest, string?, CancellationToken, Task<IIndexProvider>> connect)
+            => _connect = connect;
+
+        public Task<IIndexProvider> ConnectAsync(ConnectionRequest request, string? password, CancellationToken ct = default)
+            => _connect(request, password, ct);
+    }
+
+    private sealed class ImmediateProvider : IIndexProvider
+    {
+        public bool Disposed { get; private set; }
+
+        public ServerInfo ServerInfo { get; init; } = new()
+        {
+            ServerName = "PROD01",
+            ProductVersion = new Version(16, 0),
+            Edition = "Developer",
+            Platform = ServerPlatform.OnPremises,
+            UptimeDays = 100
+        };
+
+        public ProviderCapabilities Capabilities { get; init; } = new();
+        public PermissionReport Permissions { get; init; } = new() { CanViewState = true, CanAlter = true, CanAccessQueryStore = true };
+        public IReadOnlyList<IndexModel> Indexes { get; init; } = [IndexModelFactory.Nonclustered()];
+
+        public Task<IReadOnlyList<IndexModel>> GetIndexesAsync(IReadOnlyList<string> databases, CancellationToken ct = default)
+            => Task.FromResult(Indexes);
+
+        public Task<IReadOnlyList<QueryUsage>> GetQueryUsageAsync(IndexRef index, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<QueryUsage>>([]);
+
+        public Task<IReadOnlyList<IndexHint>> GetHintsAsync(IndexRef index, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<IndexHint>>([]);
+
+        public Task<QueryStoreState> GetQueryStoreStateAsync(string database, CancellationToken ct = default)
+            => Task.FromResult(QueryStoreState.Off);
+
+        public Task EnableQueryStoreAsync(string database, QueryStoreSettings settings, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task DropIndexAsync(IndexRef index, TimeSpan timeout, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class DelayedProvider : IIndexProvider
+    {
+        private readonly TaskCompletionSource _started = new();
+        private readonly TaskCompletionSource _release = new();
+
+        public Task StartedTask => _started.Task;
+        public void Release() => _release.TrySetResult();
+        public bool Disposed { get; private set; }
+
+        public ServerInfo ServerInfo { get; init; } = new()
+        {
+            ServerName = "PROD01",
+            ProductVersion = new Version(16, 0),
+            Edition = "Developer",
+            Platform = ServerPlatform.OnPremises,
+            UptimeDays = 100
+        };
+
+        public ProviderCapabilities Capabilities { get; init; } = new();
+        public PermissionReport Permissions { get; init; } = new() { CanViewState = true, CanAlter = true, CanAccessQueryStore = true };
+        public IReadOnlyList<IndexModel> Indexes { get; init; } = [IndexModelFactory.Nonclustered()];
+
+        public async Task<IReadOnlyList<IndexModel>> GetIndexesAsync(IReadOnlyList<string> databases, CancellationToken ct)
+        {
+            _started.TrySetResult();
+            await _release.Task.WaitAsync(ct);
+            return Indexes;
+        }
+
+        public Task<IReadOnlyList<QueryUsage>> GetQueryUsageAsync(IndexRef index, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<QueryUsage>>([]);
+
+        public Task<IReadOnlyList<IndexHint>> GetHintsAsync(IndexRef index, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<IndexHint>>([]);
+
+        public Task<QueryStoreState> GetQueryStoreStateAsync(string database, CancellationToken ct = default)
+            => Task.FromResult(QueryStoreState.Off);
+
+        public Task EnableQueryStoreAsync(string database, QueryStoreSettings settings, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task DropIndexAsync(IndexRef index, TimeSpan timeout, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private (ConnectionSessionViewModel vm, RecordingDialogs dialogs) Build(string? password = "pw")
     {
         var paths = new AppPaths(_dir, _dir, _dir);
@@ -65,6 +168,22 @@ public class ConnectionSessionViewModelTests : IDisposable
         var vm = new ConnectionSessionViewModel(
             new IndexLoadService(new ThrowingFactory(), paths),
             new StubPrompt("pw"), connections, dialogs, new ResxLocalizer());
+        return vm;
+    }
+
+    private ConnectionSessionViewModel BuildWithFactory(IIndexProviderFactory factory, string? password = "pw")
+    {
+        var paths = new AppPaths(_dir, _dir, _dir);
+        var store = new ConnectionStore(paths);
+        var connections = new ConnectionManagerViewModel(store, new AuthAvailability(new ResxLocalizer(), true, false))
+        {
+            Selected = new ConnectionProfile { Name = "prod", Server = "PROD01", Auth = AuthMode.SqlLogin, Login = "app" },
+            DatabasesText = "Sales"
+        };
+        var dialogs = new RecordingDialogs();
+        var vm = new ConnectionSessionViewModel(
+            new IndexLoadService(factory, paths),
+            new StubPrompt(password), connections, dialogs, new ResxLocalizer());
         return vm;
     }
 
@@ -122,5 +241,68 @@ public class ConnectionSessionViewModelTests : IDisposable
         await vm.ConnectCommand.ExecuteAsync(null);
         Assert.Equal(Strings.Connection_Error, vm.StatusMessage);
         Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task Rapid_double_connect_serializes_and_disposes_cancelled_provider()
+    {
+        var provider1 = new DelayedProvider();
+        var provider2 = new ImmediateProvider();
+        var providers = new IIndexProvider[] { provider1, provider2 };
+        var index = 0;
+        var factory = new DelegateFactory((_, _, _) =>
+            Task.FromResult<IIndexProvider>(providers[System.Threading.Interlocked.Increment(ref index) - 1]));
+
+        var vm = BuildWithFactory(factory);
+
+        var t1 = vm.ConnectCommand.ExecuteAsync(null);
+        var t2 = vm.ConnectCommand.ExecuteAsync(null);
+        await Task.WhenAll(t1, t2);
+
+        Assert.Same(provider2, vm.ActiveProvider);
+        Assert.True(vm.IsConnected);
+        Assert.True(provider1.Disposed);
+        Assert.False(provider2.Disposed);
+    }
+
+    [Fact]
+    public async Task Disconnect_while_loading_cancels_and_leaves_disconnected()
+    {
+        var provider = new DelayedProvider();
+        var factory = new DelegateFactory((_, _, _) => Task.FromResult<IIndexProvider>(provider));
+        var vm = BuildWithFactory(factory);
+
+        var connectTask = vm.ConnectCommand.ExecuteAsync(null);
+        await provider.StartedTask;
+
+        await vm.DisconnectCommand.ExecuteAsync(null);
+        await connectTask;
+
+        Assert.False(vm.IsConnected);
+        Assert.Null(vm.ActiveProvider);
+        Assert.True(provider.Disposed);
+    }
+
+    [Fact]
+    public async Task Rapid_cancel_calls_do_not_throw_object_disposed()
+    {
+        var provider = new DelayedProvider();
+        var factory = new DelegateFactory((_, _, _) => Task.FromResult<IIndexProvider>(provider));
+        var vm = BuildWithFactory(factory);
+
+        var connectTask = vm.ConnectCommand.ExecuteAsync(null);
+        await provider.StartedTask;
+
+        Exception? captured = null;
+        for (var i = 0; i < 100; i++)
+        {
+            captured ??= Record.Exception(() => vm.CancelCommand.Execute(null));
+        }
+
+        provider.Release();
+        await connectTask;
+
+        Assert.Null(captured);
+        Assert.False(vm.IsConnected);
     }
 }
