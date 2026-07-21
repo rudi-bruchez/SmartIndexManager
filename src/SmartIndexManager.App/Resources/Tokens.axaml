@@ -1,6 +1,35 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Task 1 stub: app-specific tokens will be added in Task 2. -->
-    <!-- Task 13 note: Semi.Avalonia border brush resource key is SemiColorBorder. -->
+
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="ScoreSafeBrush" Color="#2E7D32" />
+            <SolidColorBrush x:Key="ScoreCautionBrush" Color="#B26A00" />
+            <SolidColorBrush x:Key="ScoreRiskBrush" Color="#C0392B" />
+            <SolidColorBrush x:Key="DangerBrush" Color="#C0392B" />
+            <SolidColorBrush x:Key="WarnBrush" Color="#B5651D" />
+            <SolidColorBrush x:Key="InfoBrush" Color="#2E86C1" />
+            <SolidColorBrush x:Key="AccentAltBrush" Color="#7D3C98" />
+            <SolidColorBrush x:Key="SurfaceCardBrush" Color="#FFFFFF" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="ScoreSafeBrush" Color="#66BB6A" />
+            <SolidColorBrush x:Key="ScoreCautionBrush" Color="#E0A030" />
+            <SolidColorBrush x:Key="ScoreRiskBrush" Color="#E57368" />
+            <SolidColorBrush x:Key="DangerBrush" Color="#E57368" />
+            <SolidColorBrush x:Key="WarnBrush" Color="#CE9B63" />
+            <SolidColorBrush x:Key="InfoBrush" Color="#5FA8DD" />
+            <SolidColorBrush x:Key="AccentAltBrush" Color="#B07CC6" />
+            <SolidColorBrush x:Key="SurfaceCardBrush" Color="#2A2A2E" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <x:Double x:Key="SpacingXs">2</x:Double>
+    <x:Double x:Key="SpacingSm">4</x:Double>
+    <x:Double x:Key="SpacingMd">8</x:Double>
+    <x:Double x:Key="SpacingLg">12</x:Double>
+    <x:Double x:Key="SpacingXl">16</x:Double>
     <x:Double x:Key="GridRowHeight">28</x:Double>
+    <CornerRadius x:Key="RadiusSm">3</CornerRadius>
+    <CornerRadius x:Key="RadiusMd">6</CornerRadius>
 </ResourceDictionary>
