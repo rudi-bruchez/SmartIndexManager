@@ -1,0 +1,15 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+        xmlns:views="clr-namespace:SmartIndexManager.App.Views"
+        xmlns:loc="clr-namespace:SmartIndexManager.App.Localization"
+        x:Class="SmartIndexManager.App.Views.ConnectionManagerDialog"
+        x:DataType="vm:ConnectionManagerViewModel"
+        Width="640" Height="480" WindowStartupLocation="CenterOwner"
+        Title="{x:Static loc:Strings.Connection_Title}">
+    <DockPanel Margin="12">
+        <Button DockPanel.Dock="Bottom" HorizontalAlignment="Right" Content="Close"
+                Click="OnClose" Margin="0,8,0,0" />
+        <views:ConnectionManagerView />
+    </DockPanel>
+</Window>
