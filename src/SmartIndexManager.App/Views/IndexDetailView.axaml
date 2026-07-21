@@ -2,25 +2,113 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
              xmlns:loc="clr-namespace:SmartIndexManager.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:scoring="clr-namespace:SmartIndexManager.Core.Scoring;assembly=SmartIndexManager.Core"
              x:Class="SmartIndexManager.App.Views.IndexDetailView"
              x:DataType="vm:IndexDetailViewModel">
+    <UserControl.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <Style Selector="Border.score-pill">
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+        <Style Selector="Border.score-pill.score-safe"><Setter Property="Background" Value="{DynamicResource ScoreSafeBrush}" /></Style>
+        <Style Selector="Border.score-pill.score-caution"><Setter Property="Background" Value="{DynamicResource ScoreCautionBrush}" /></Style>
+        <Style Selector="Border.score-pill.score-risk"><Setter Property="Background" Value="{DynamicResource ScoreRiskBrush}" /></Style>
+    </UserControl.Styles>
     <ScrollViewer>
-        <StackPanel Margin="8" Spacing="8">
-            <TextBlock Text="{x:Static loc:Strings.Detail_Ddl}" FontWeight="SemiBold" />
-            <TextBox Text="{Binding Ddl}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="120" />
-            <TextBlock Text="{Binding OldestSnapshotText}" />
-            <TextBlock Text="{x:Static loc:Strings.Detail_Queries}" FontWeight="SemiBold" />
-            <ItemsControl ItemsSource="{Binding Queries}">
-                <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding QueryText}" /></DataTemplate></ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <TextBlock Text="{x:Static loc:Strings.Detail_Hints}" FontWeight="SemiBold" />
-            <ItemsControl ItemsSource="{Binding Hints}">
-                <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Reference}" /></DataTemplate></ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <TextBlock Text="{x:Static loc:Strings.Detail_ScoreFactors}" FontWeight="SemiBold" />
-            <ItemsControl ItemsSource="{Binding ScoreFactors}">
-                <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Description}" /></DataTemplate></ItemsControl.ItemTemplate>
-            </ItemsControl>
+        <StackPanel Margin="8">
+
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Classes="title" Text="{Binding HeaderName}" />
+                        <TextBlock Classes="caption" Text="{Binding TypeText}" />
+                    </StackPanel>
+                    <Border Grid.Column="1" Classes="score-pill" VerticalAlignment="Center"
+                            Classes.score-safe="{Binding IsScoreSafe}"
+                            Classes.score-caution="{Binding IsScoreCaution}"
+                            Classes.score-risk="{Binding IsScoreRisk}"
+                            IsVisible="{Binding Score, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Text="{Binding Score}" Foreground="White" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="subtitle" Text="{x:Static loc:Strings.Detail_Ddl}" />
+                        <Button Grid.Column="1" Click="OnCopyDdl" Padding="4,0"
+                                ToolTip.Tip="{x:Static loc:Strings.Detail_Copy}">
+                            <mi:MaterialIcon Kind="ContentCopy" Width="14" Height="14" />
+                        </Button>
+                    </Grid>
+                    <TextBox Classes="code" Text="{Binding Ddl}" IsReadOnly="True"
+                             AcceptsReturn="True" TextWrapping="NoWrap"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Section_Structure}" />
+                    <TextBlock Classes="caption" Text="{Binding KeyColumnsText}" />
+                    <TextBlock Classes="caption" Text="{Binding IncludesText}" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Section_Usage}" />
+                    <TextBlock Classes="caption" Text="{Binding OldestSnapshotText}" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_ScoreFactors}" />
+                    <ItemsControl ItemsSource="{Binding ScoreFactors}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="scoring:ScoreFactor">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                                    <TextBlock Grid.Column="0" Classes="caption" FontWeight="SemiBold"
+                                               Text="{Binding Name}" Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="1" Classes="caption" TextWrapping="Wrap"
+                                               Text="{Binding Description}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Minimal redundancy indicator. Full covering-index + rule detail deferred (data not yet threaded). -->
+            <Border Classes="card" IsVisible="{Binding IsRedundant}">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Badge_Redundant}" />
+                    <mi:MaterialIcon Kind="ContentDuplicate" Width="16" Height="16" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <Expander Header="{x:Static loc:Strings.Detail_Section_ProviderProps}" Margin="0,0,0,8">
+                <ItemsControl ItemsSource="{Binding ProviderProps}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                                <TextBlock Grid.Column="0" Classes="caption" FontWeight="SemiBold"
+                                           Text="{Binding Key}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Value}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Expander>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
