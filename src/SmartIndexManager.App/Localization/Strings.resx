@@ -94,6 +94,12 @@
   <data name="Grid_Column_Includes" xml:space="preserve">
     <value>Includes</value>
   </data>
+  <data name="Grid_Column_Filter" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Grid_Column_LastRead" xml:space="preserve">
+    <value>Last read</value>
+  </data>
   <data name="Grid_Column_SizeMb" xml:space="preserve">
     <value>Size (MB)</value>
   </data>
@@ -120,6 +126,9 @@
   </data>
   <data name="Grid_Column_Type" xml:space="preserve">
     <value>Type</value>
+  </data>
+  <data name="Grid_Column_Unique" xml:space="preserve">
+    <value>Unique</value>
   </data>
   <data name="Grid_Column_Score" xml:space="preserve">
     <value>Score</value>

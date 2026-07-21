@@ -196,6 +196,15 @@ namespace SmartIndexManager.App.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Unique.
+        /// </summary>
+        public static string Grid_Column_Unique {
+            get {
+                return ResourceManager.GetString("Grid_Column_Unique", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Score.
         /// </summary>
         public static string Grid_Column_Score {
@@ -219,6 +228,24 @@ namespace SmartIndexManager.App.Localization {
         public static string Grid_Column_Includes {
             get {
                 return ResourceManager.GetString("Grid_Column_Includes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Filter.
+        /// </summary>
+        public static string Grid_Column_Filter {
+            get {
+                return ResourceManager.GetString("Grid_Column_Filter", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Last read.
+        /// </summary>
+        public static string Grid_Column_LastRead {
+            get {
+                return ResourceManager.GetString("Grid_Column_LastRead", resourceCulture);
             }
         }
         

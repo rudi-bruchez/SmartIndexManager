@@ -12,12 +12,15 @@ public class BrowseViewModelTests : IDisposable
     private readonly string _dir = Directory.CreateTempSubdirectory("sim-browse-").FullName;
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
-    private static FakeIndexProvider Provider(params IndexModel[] indexes) => new()
+    private static FakeIndexProvider Provider(params IndexModel[] indexes) => Provider(null, indexes);
+
+    private static FakeIndexProvider Provider(Exception? queryUsageException, params IndexModel[] indexes) => new()
     {
         ServerInfo = new ServerInfo { ServerName = "PROD01", ProductVersion = new Version(16, 0), Edition = "Developer", Platform = ServerPlatform.OnPremises, UptimeDays = 100 },
         Capabilities = new ProviderCapabilities { SupportsQueryStore = true, SupportsPlanCache = true },
         Permissions = new PermissionReport { CanViewState = true, CanAlter = true, CanAccessQueryStore = true },
-        Indexes = indexes
+        Indexes = indexes,
+        QueryUsageException = queryUsageException
     };
 
     private BrowseViewModel Build() =>
@@ -60,6 +63,44 @@ public class BrowseViewModelTests : IDisposable
         Assert.Equal(BrowseState.Disconnected, vm.State);
         Assert.Equal(0, vm.Grid.VisibleCount);
         Assert.Null(vm.Detail);
+    }
+
+    [Fact]
+    public async Task ShowDetailAsync_sets_error_state_when_detail_load_fails()
+    {
+        var vm = Build();
+        var provider = Provider(
+            new InvalidOperationException("query store unavailable"),
+            IndexModelFactory.Nonclustered());
+        var rows = new[] { new IndexRowViewModel(IndexModelFactory.Nonclustered(), null, Safe(), false, false) };
+        await vm.OnConnectedAsync(provider, rows, CancellationToken.None);
+
+        await vm.ShowDetailAsync(vm.Grid.SelectedRow ?? rows[0]);
+
+        Assert.Equal(BrowseState.Error, vm.State);
+        Assert.NotNull(vm.ErrorMessage);
+        Assert.Contains("Failed to load detail", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("query store unavailable", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ShowDetailAsync_clears_error_state_after_successful_load()
+    {
+        var vm = Build();
+        var provider = Provider(IndexModelFactory.Nonclustered());
+        var rows = new[] { new IndexRowViewModel(IndexModelFactory.Nonclustered(), null, Safe(), false, false) };
+        await vm.OnConnectedAsync(provider, rows, CancellationToken.None);
+
+        provider.QueryUsageException = new InvalidOperationException("transient failure");
+        await vm.ShowDetailAsync(rows[0]);
+        Assert.Equal(BrowseState.Error, vm.State);
+        Assert.NotNull(vm.ErrorMessage);
+
+        provider.QueryUsageException = null;
+        await vm.ShowDetailAsync(rows[0]);
+
+        Assert.Equal(BrowseState.Ready, vm.State);
+        Assert.Null(vm.ErrorMessage);
     }
 
     private static Core.Safety.SafetyAssessment Safe() =>

@@ -52,6 +52,11 @@
                             <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Table}"    Binding="{Binding Table}" Width="*" MinWidth="90" />
                             <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Index}"    Binding="{Binding Name}" Width="*" MinWidth="120" />
                             <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Type}"     Binding="{Binding Type}" Width="Auto" MinWidth="90" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Key}"      Binding="{Binding KeySummary}" Width="*" MinWidth="80" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Includes}" Binding="{Binding IncludeSummary}" Width="*" MinWidth="80" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Filter}"   Binding="{Binding Index.FilterPredicate}" Width="*" MinWidth="80" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Unique}"   Binding="{Binding IsUnique}" Width="Auto" MinWidth="60" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_LastRead}" Binding="{Binding LastRead}" Width="Auto" MinWidth="90" />
                             <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_SizeMb}" Width="Auto" MinWidth="70" SortMemberPath="SizeMb">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate x:DataType="vm:IndexRowViewModel">
@@ -80,7 +85,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Score}" Width="Auto">
+                            <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Score}" Width="Auto" SortMemberPath="Score">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate x:DataType="vm:IndexRowViewModel">
                                         <Border Classes="score-pill"

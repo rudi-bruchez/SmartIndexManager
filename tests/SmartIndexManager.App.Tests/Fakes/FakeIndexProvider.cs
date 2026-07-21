@@ -13,13 +13,16 @@ public sealed class FakeIndexProvider : IIndexProvider
     public IReadOnlyList<QueryUsage> Usage { get; init; } = [];
     public IReadOnlyList<IndexHint> Hints { get; init; } = [];
     public QueryStoreState QueryStore { get; init; } = QueryStoreState.Off;
+    public Exception? QueryUsageException { get; set; }
     public bool Disposed { get; private set; }
 
     public Task<IReadOnlyList<IndexModel>> GetIndexesAsync(IReadOnlyList<string> databases, CancellationToken ct = default)
         => Task.FromResult(Indexes);
 
     public Task<IReadOnlyList<QueryUsage>> GetQueryUsageAsync(IndexRef index, CancellationToken ct = default)
-        => Task.FromResult(Usage);
+        => QueryUsageException is not null
+            ? Task.FromException<IReadOnlyList<QueryUsage>>(QueryUsageException)
+            : Task.FromResult(Usage);
 
     public Task<IReadOnlyList<IndexHint>> GetHintsAsync(IndexRef index, CancellationToken ct = default)
         => Task.FromResult(Hints);

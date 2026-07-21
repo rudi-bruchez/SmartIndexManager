@@ -54,6 +54,7 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
         await StopDetailWorkAsync().ConfigureAwait(true);
         Detail = null;
         Grid.SetRows([]);
+        ErrorMessage = null;
         State = BrowseState.Disconnected;
     }
 
@@ -73,11 +74,14 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
             try
             {
                 await detail.ShowAsync(row, cts.Token).ConfigureAwait(true);
+                ErrorMessage = null;
+                State = Grid.HasVisibleRows ? BrowseState.Ready : BrowseState.Empty;
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 ErrorMessage = $"{_loc["Detail_Error"]}: {ex.Message}";
+                State = BrowseState.Error;
             }
             finally
             {
