@@ -40,6 +40,10 @@ public sealed class IndexRowViewModel : ViewModelBase
     public int? Score => ScoreDetail?.Value;
     public ScoreColor? ScoreColor => ScoreDetail?.Color;
 
+    public bool IsScoreSafe => ScoreColor == Core.Scoring.ScoreColor.Green;
+    public bool IsScoreCaution => ScoreColor == Core.Scoring.ScoreColor.Orange;
+    public bool IsScoreRisk => ScoreColor == Core.Scoring.ScoreColor.Red;
+
     public bool NotDeletable { get; }
     public string? NotDeletableReason { get; }
     public bool Redundant { get; }
