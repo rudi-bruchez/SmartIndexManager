@@ -28,7 +28,7 @@ public partial class App : Application
         {
             var theme = services.GetRequiredService<IThemeService>();
             RequestedThemeVariant = theme.Current == ThemeVariantKind.Dark ? ThemeVariant.Dark : ThemeVariant.Light;
-            desktop.MainWindow = new MainWindow { DataContext = services.GetRequiredService<MainWindowViewModel>() };
+            desktop.MainWindow = new MainWindow { DataContext = services.GetRequiredService<ShellViewModel>() };
         }
         base.OnFrameworkInitializationCompleted();
     }

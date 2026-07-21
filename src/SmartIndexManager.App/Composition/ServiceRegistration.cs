@@ -22,7 +22,10 @@ public static class ServiceRegistration
         services.AddTransient<ConnectionManagerViewModel>();
         services.AddSingleton<IndexGridViewModel>();
         services.AddSingleton<PermissionStatusViewModel>();
-        services.AddSingleton<MainWindowViewModel>();
+        services.AddSingleton<IDialogService, AvaloniaDialogService>();
+        services.AddSingleton<BrowseViewModel>();
+        services.AddSingleton<ConnectionSessionViewModel>();
+        services.AddSingleton<ShellViewModel>();
         return services;
     }
 }

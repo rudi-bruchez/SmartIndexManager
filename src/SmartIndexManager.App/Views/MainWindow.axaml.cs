@@ -8,7 +8,7 @@ namespace SmartIndexManager.App.Views;
 
 public partial class MainWindow : Window
 {
-    private MainWindowViewModel? _observed;
+    private ShellViewModel? _observed;
 
     public MainWindow()
     {
@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_observed is not null) _observed.PropertyChanged -= OnViewModelPropertyChanged;
-        _observed = DataContext as MainWindowViewModel;
+        _observed = DataContext as ShellViewModel;
         if (_observed is not null)
         {
             _observed.PropertyChanged += OnViewModelPropertyChanged;
@@ -29,7 +29,7 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.IsDarkTheme) && _observed is not null)
+        if (e.PropertyName == nameof(ShellViewModel.IsDarkTheme) && _observed is not null)
             ApplyTheme(_observed.IsDarkTheme);
     }
 
