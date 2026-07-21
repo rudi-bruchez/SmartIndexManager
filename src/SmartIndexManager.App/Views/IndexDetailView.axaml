@@ -4,6 +4,7 @@
              xmlns:loc="clr-namespace:SmartIndexManager.App.Localization"
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:scoring="clr-namespace:SmartIndexManager.Core.Scoring;assembly=SmartIndexManager.Core"
+             xmlns:provider="clr-namespace:SmartIndexManager.Core.Provider;assembly=SmartIndexManager.Core"
              x:Class="SmartIndexManager.App.Views.IndexDetailView"
              x:DataType="vm:IndexDetailViewModel">
     <UserControl.Styles>
@@ -60,6 +61,7 @@
                     <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Section_Structure}" />
                     <TextBlock Classes="caption" Text="{Binding KeyColumnsText}" />
                     <TextBlock Classes="caption" Text="{Binding IncludesText}" />
+                    <TextBlock Classes="caption" FontWeight="SemiBold" Text="Unique" IsVisible="{Binding IsUnique}" />
                 </StackPanel>
             </Border>
 
@@ -67,6 +69,45 @@
                 <StackPanel Spacing="4">
                     <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Section_Usage}" />
                     <TextBlock Classes="caption" Text="{Binding OldestSnapshotText}" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Queries}" />
+                    <ItemsControl ItemsSource="{Binding Queries}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="provider:QueryUsage">
+                                <StackPanel Spacing="2" Margin="0,2">
+                                    <TextBlock Classes="code" TextWrapping="Wrap" Text="{Binding QueryText}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Classes="caption" Text="{Binding ExecutionCount}" />
+                                        <TextBlock Classes="caption" Text="executions" />
+                                        <TextBlock Classes="caption" Text="•" />
+                                        <TextBlock Classes="caption" Text="{Binding Source}" />
+                                        <TextBlock Classes="caption" Text="{Binding LastExecutionUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="subtitle" Text="{x:Static loc:Strings.Detail_Hints}" />
+                    <ItemsControl ItemsSource="{Binding Hints}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="provider:IndexHint">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                                    <TextBlock Grid.Column="0" Classes="caption" FontWeight="SemiBold"
+                                               Text="{Binding Reference}" Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Kind}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
 
@@ -99,7 +140,7 @@
             <Expander Header="{x:Static loc:Strings.Detail_Section_ProviderProps}" Margin="0,0,0,8">
                 <ItemsControl ItemsSource="{Binding ProviderProps}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="vm:NamedValue">
                             <Grid ColumnDefinitions="Auto,*" Margin="0,1">
                                 <TextBlock Grid.Column="0" Classes="caption" FontWeight="SemiBold"
                                            Text="{Binding Key}" Margin="0,0,8,0" />

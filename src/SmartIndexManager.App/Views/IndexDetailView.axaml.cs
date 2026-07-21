@@ -11,7 +11,14 @@ public partial class IndexDetailView : UserControl
 
     private async void OnCopyDdl(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is IndexDetailViewModel vm && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
-            await clipboard.SetTextAsync(vm.Ddl);
+        try
+        {
+            if (DataContext is IndexDetailViewModel vm && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+                await clipboard.SetTextAsync(vm.Ddl);
+        }
+        catch
+        {
+            // Clipboard may be unavailable; swallow to avoid an unhandled exception in an async-void handler.
+        }
     }
 }

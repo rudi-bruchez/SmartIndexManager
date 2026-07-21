@@ -32,7 +32,7 @@ public sealed partial class IndexDetailViewModel : ViewModelBase
     public ObservableCollection<QueryUsage> Queries { get; } = [];
     public ObservableCollection<IndexHint> Hints { get; } = [];
     public ObservableCollection<ScoreFactor> ScoreFactors { get; } = [];
-    public ObservableCollection<KeyValuePair<string, string>> ProviderProps { get; } = [];
+    public ObservableCollection<NamedValue> ProviderProps { get; } = [];
 
     public IndexDetailViewModel(IIndexProvider provider, IAppPaths paths, ILocalizer loc)
     {
@@ -59,7 +59,7 @@ public sealed partial class IndexDetailViewModel : ViewModelBase
         IsScoreRisk = row.IsScoreRisk;
         ProviderProps.Clear();
         foreach (var kv in index.ProviderProperties)
-            ProviderProps.Add(new KeyValuePair<string, string>(kv.Key, kv.Value?.ToString() ?? ""));
+            ProviderProps.Add(new NamedValue(kv.Key, kv.Value?.ToString() ?? ""));
 
         Ddl = SqlServerDdlGenerator.Generate(index) switch
         {
@@ -91,3 +91,5 @@ public sealed partial class IndexDetailViewModel : ViewModelBase
             : "";
     }
 }
+
+public sealed record NamedValue(string Key, string Value);
