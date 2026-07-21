@@ -1,0 +1,6 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Task 1 stub: app-specific tokens will be added in Task 2. -->
+    <!-- Task 13 note: Semi.Avalonia border brush resource key is SemiColorBorder. -->
+    <x:Double x:Key="GridRowHeight">28</x:Double>
+</ResourceDictionary>
