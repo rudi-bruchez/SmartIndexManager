@@ -40,112 +40,115 @@
                     <TextBlock Grid.Column="2" Classes="caption" VerticalAlignment="Center" Margin="8,0,0,0"
                                Text="{Binding Grid.MatchCountText}" />
                 </Grid>
-                <DataGrid ItemsSource="{Binding Grid.View}" SelectedItem="{Binding Grid.SelectedRow}"
-                          IsReadOnly="True" CanUserSortColumns="True" CanUserReorderColumns="True"
-                          RowHeight="{StaticResource GridRowHeight}"
-                          GridLinesVisibility="Horizontal">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Database}" Binding="{Binding Database}" Width="*" MinWidth="80" />
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Schema}"   Binding="{Binding Schema}" Width="Auto" MinWidth="60" />
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Table}"    Binding="{Binding Table}" Width="*" MinWidth="90" />
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Index}"    Binding="{Binding Name}" Width="*" MinWidth="120" />
-                        <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Type}"     Binding="{Binding Type}" Width="Auto" MinWidth="90" />
-                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_SizeMb}" Width="Auto" MinWidth="70" SortMemberPath="SizeMb">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate x:DataType="vm:IndexRowViewModel">
-                                    <TextBlock Text="{Binding SizeMb, StringFormat={}{0:N1}}" TextAlignment="Right" Margin="0,0,8,0" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Seeks}" Width="Auto" MinWidth="70" SortMemberPath="Seeks">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate x:DataType="vm:IndexRowViewModel">
-                                    <TextBlock Text="{Binding Seeks, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Scans}" Width="Auto" MinWidth="70" SortMemberPath="Scans">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate x:DataType="vm:IndexRowViewModel">
-                                    <TextBlock Text="{Binding Scans, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Updates}" Width="Auto" MinWidth="80" SortMemberPath="Updates">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate x:DataType="vm:IndexRowViewModel">
-                                    <TextBlock Text="{Binding Updates, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Score}" Width="Auto">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate x:DataType="vm:IndexRowViewModel">
-                                    <Border Classes="score-pill"
-                                            Classes.score-safe="{Binding IsScoreSafe}"
-                                            Classes.score-caution="{Binding IsScoreCaution}"
-                                            Classes.score-risk="{Binding IsScoreRisk}"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            IsVisible="{Binding Score, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                        <TextBlock Text="{Binding Score}" Foreground="White" FontSize="11"
-                                                   HorizontalAlignment="Center" />
-                                    </Border>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate x:DataType="vm:IndexRowViewModel">
-                                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                        <Border Classes="badge" Background="{DynamicResource DangerBrush}"
-                                                IsVisible="{Binding NotDeletable}" ToolTip.Tip="{Binding NotDeletableReason}">
-                                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                                <mi:MaterialIcon Kind="LockOutline" Width="11" Height="11" Foreground="White" />
-                                                <TextBlock Text="{x:Static loc:Strings.Badge_NotDeletable}" Foreground="White" FontSize="11" />
-                                            </StackPanel>
+                <Grid>
+                    <DataGrid ItemsSource="{Binding Grid.View}" SelectedItem="{Binding Grid.SelectedRow}"
+                              IsReadOnly="True" CanUserSortColumns="True" CanUserReorderColumns="True"
+                              RowHeight="{StaticResource GridRowHeight}"
+                              GridLinesVisibility="Horizontal"
+                              IsVisible="{Binding Grid.HasVisibleRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Database}" Binding="{Binding Database}" Width="*" MinWidth="80" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Schema}"   Binding="{Binding Schema}" Width="Auto" MinWidth="60" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Table}"    Binding="{Binding Table}" Width="*" MinWidth="90" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Index}"    Binding="{Binding Name}" Width="*" MinWidth="120" />
+                            <DataGridTextColumn Header="{x:Static loc:Strings.Grid_Column_Type}"     Binding="{Binding Type}" Width="Auto" MinWidth="90" />
+                            <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_SizeMb}" Width="Auto" MinWidth="70" SortMemberPath="SizeMb">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                        <TextBlock Text="{Binding SizeMb, StringFormat={}{0:N1}}" TextAlignment="Right" Margin="0,0,8,0" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Seeks}" Width="Auto" MinWidth="70" SortMemberPath="Seeks">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                        <TextBlock Text="{Binding Seeks, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Scans}" Width="Auto" MinWidth="70" SortMemberPath="Scans">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                        <TextBlock Text="{Binding Scans, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Updates}" Width="Auto" MinWidth="80" SortMemberPath="Updates">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                        <TextBlock Text="{Binding Updates, StringFormat={}{0:N0}}" TextAlignment="Right" Margin="0,0,8,0" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="{x:Static loc:Strings.Grid_Column_Score}" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                        <Border Classes="score-pill"
+                                                Classes.score-safe="{Binding IsScoreSafe}"
+                                                Classes.score-caution="{Binding IsScoreCaution}"
+                                                Classes.score-risk="{Binding IsScoreRisk}"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                IsVisible="{Binding Score, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                            <TextBlock Text="{Binding Score}" Foreground="White" FontSize="11"
+                                                       HorizontalAlignment="Center" />
                                         </Border>
-                                        <Border Classes="badge" Background="{DynamicResource WarnBrush}" IsVisible="{Binding Redundant}">
-                                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                                <mi:MaterialIcon Kind="ContentDuplicate" Width="11" Height="11" Foreground="White" />
-                                                <TextBlock Text="{x:Static loc:Strings.Badge_Redundant}" Foreground="White" FontSize="11" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Classes="badge" Background="{DynamicResource InfoBrush}" IsVisible="{Binding SupportsForeignKey}">
-                                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                                <mi:MaterialIcon Kind="KeyLink" Width="11" Height="11" Foreground="White" />
-                                                <TextBlock Text="{x:Static loc:Strings.Badge_ForeignKey}" Foreground="White" FontSize="11" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Classes="badge" Background="{DynamicResource AccentAltBrush}" IsVisible="{Binding ReferencedByHint}">
-                                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                                <mi:MaterialIcon Kind="FlagOutline" Width="11" Height="11" Foreground="White" />
-                                                <TextBlock Text="{x:Static loc:Strings.Badge_Hint}" Foreground="White" FontSize="11" />
-                                            </StackPanel>
-                                        </Border>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:IndexRowViewModel">
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <Border Classes="badge" Background="{DynamicResource DangerBrush}"
+                                                    IsVisible="{Binding NotDeletable}" ToolTip.Tip="{Binding NotDeletableReason}">
+                                                <StackPanel Orientation="Horizontal" Spacing="2">
+                                                    <mi:MaterialIcon Kind="LockOutline" Width="11" Height="11" Foreground="White" />
+                                                    <TextBlock Text="{x:Static loc:Strings.Badge_NotDeletable}" Foreground="White" FontSize="11" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Classes="badge" Background="{DynamicResource WarnBrush}" IsVisible="{Binding Redundant}">
+                                                <StackPanel Orientation="Horizontal" Spacing="2">
+                                                    <mi:MaterialIcon Kind="ContentDuplicate" Width="11" Height="11" Foreground="White" />
+                                                    <TextBlock Text="{x:Static loc:Strings.Badge_Redundant}" Foreground="White" FontSize="11" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Classes="badge" Background="{DynamicResource InfoBrush}" IsVisible="{Binding SupportsForeignKey}">
+                                                <StackPanel Orientation="Horizontal" Spacing="2">
+                                                    <mi:MaterialIcon Kind="KeyLink" Width="11" Height="11" Foreground="White" />
+                                                    <TextBlock Text="{x:Static loc:Strings.Badge_ForeignKey}" Foreground="White" FontSize="11" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Classes="badge" Background="{DynamicResource AccentAltBrush}" IsVisible="{Binding ReferencedByHint}">
+                                                <StackPanel Orientation="Horizontal" Spacing="2">
+                                                    <mi:MaterialIcon Kind="FlagOutline" Width="11" Height="11" Foreground="White" />
+                                                    <TextBlock Text="{x:Static loc:Strings.Badge_Hint}" Foreground="White" FontSize="11" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
 
-                <!-- Empty results state (no rows at all, or filter with no matches) -->
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
-                            IsVisible="{Binding !Grid.HasVisibleRows}">
-                    <StackPanel IsVisible="{Binding Grid.IsFiltered}">
-                        <mi:MaterialIcon Kind="FileSearchOutline" Width="48" Height="48" Opacity="0.6" HorizontalAlignment="Center" />
-                        <TextBlock Classes="title" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_NoMatchesTitle}" />
-                        <TextBlock Classes="caption" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_NoMatchesMessage}" />
-                        <Button HorizontalAlignment="Center" Margin="0,4,0,0"
-                                Content="{x:Static loc:Strings.Grid_ClearFilter}"
-                                Command="{Binding Grid.ClearFilterCommand}" />
+                    <!-- Empty results state (no rows at all, or filter with no matches) -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                                IsVisible="{Binding !Grid.HasVisibleRows}">
+                        <StackPanel IsVisible="{Binding Grid.IsFiltered}">
+                            <mi:MaterialIcon Kind="FileSearchOutline" Width="48" Height="48" Opacity="0.6" HorizontalAlignment="Center" />
+                            <TextBlock Classes="title" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_NoMatchesTitle}" />
+                            <TextBlock Classes="caption" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_NoMatchesMessage}" />
+                            <Button HorizontalAlignment="Center" Margin="0,4,0,0"
+                                    Content="{x:Static loc:Strings.Grid_ClearFilter}"
+                                    Command="{Binding Grid.ClearFilterCommand}" />
+                        </StackPanel>
+                        <StackPanel IsVisible="{Binding !Grid.IsFiltered}">
+                            <mi:MaterialIcon Kind="DatabaseOffOutline" Width="48" Height="48" Opacity="0.6" HorizontalAlignment="Center" />
+                            <TextBlock Classes="title" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_EmptyTitle}" />
+                            <TextBlock Classes="caption" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_EmptyMessage}" />
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel IsVisible="{Binding !Grid.IsFiltered}">
-                        <mi:MaterialIcon Kind="DatabaseOffOutline" Width="48" Height="48" Opacity="0.6" HorizontalAlignment="Center" />
-                        <TextBlock Classes="title" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_EmptyTitle}" />
-                        <TextBlock Classes="caption" HorizontalAlignment="Center" Text="{x:Static loc:Strings.Grid_EmptyMessage}" />
-                    </StackPanel>
-                </StackPanel>
+                </Grid>
             </DockPanel>
             <GridSplitter Grid.Column="1" Width="4" />
             <Panel Grid.Column="2">
