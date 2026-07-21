@@ -190,4 +190,64 @@
   <data name="Connection_TrustServerCertificate" xml:space="preserve">
     <value>Trust server certificate</value>
   </data>
+  <data name="Nav_Audit" xml:space="preserve">
+    <value>Audit</value>
+  </data>
+  <data name="Nav_Basket" xml:space="preserve">
+    <value>Deletion basket</value>
+  </data>
+  <data name="Nav_Browse" xml:space="preserve">
+    <value>Browse</value>
+  </data>
+  <data name="Nav_Restore" xml:space="preserve">
+    <value>Restore</value>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Placeholder_Message" xml:space="preserve">
+    <value>Planned for a future version.</value>
+  </data>
+  <data name="Connection_Disconnect" xml:space="preserve">
+    <value>Disconnect</value>
+  </data>
+  <data name="Connection_Manage" xml:space="preserve">
+    <value>Manage…</value>
+  </data>
+  <data name="Connection_Prompt" xml:space="preserve">
+    <value>Connect to a server to browse indexes.</value>
+  </data>
+  <data name="Grid_MatchCount" xml:space="preserve">
+    <value>{0} of {1} indexes</value>
+  </data>
+  <data name="Grid_EmptyTitle" xml:space="preserve">
+    <value>No indexes</value>
+  </data>
+  <data name="Grid_EmptyMessage" xml:space="preserve">
+    <value>Connect to a server to browse indexes.</value>
+  </data>
+  <data name="Grid_NoMatchesTitle" xml:space="preserve">
+    <value>No matches</value>
+  </data>
+  <data name="Grid_NoMatchesMessage" xml:space="preserve">
+    <value>No index matches the current filter.</value>
+  </data>
+  <data name="Grid_ClearFilter" xml:space="preserve">
+    <value>Clear filter</value>
+  </data>
+  <data name="Detail_Empty" xml:space="preserve">
+    <value>Select an index to see its details.</value>
+  </data>
+  <data name="Detail_Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Detail_Section_Structure" xml:space="preserve">
+    <value>Structure</value>
+  </data>
+  <data name="Detail_Section_Usage" xml:space="preserve">
+    <value>Usage</value>
+  </data>
+  <data name="Detail_Section_ProviderProps" xml:space="preserve">
+    <value>Provider properties</value>
+  </data>
 </root>

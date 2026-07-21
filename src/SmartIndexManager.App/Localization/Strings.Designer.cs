@@ -419,5 +419,185 @@ namespace SmartIndexManager.App.Localization {
                 return ResourceManager.GetString("Connection_TrustServerCertificate", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Audit.
+        /// </summary>
+        public static string Nav_Audit {
+            get {
+                return ResourceManager.GetString("Nav_Audit", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Deletion basket.
+        /// </summary>
+        public static string Nav_Basket {
+            get {
+                return ResourceManager.GetString("Nav_Basket", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Browse.
+        /// </summary>
+        public static string Nav_Browse {
+            get {
+                return ResourceManager.GetString("Nav_Browse", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Restore.
+        /// </summary>
+        public static string Nav_Restore {
+            get {
+                return ResourceManager.GetString("Nav_Restore", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Settings.
+        /// </summary>
+        public static string Nav_Settings {
+            get {
+                return ResourceManager.GetString("Nav_Settings", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Planned for a future version..
+        /// </summary>
+        public static string Placeholder_Message {
+            get {
+                return ResourceManager.GetString("Placeholder_Message", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Disconnect.
+        /// </summary>
+        public static string Connection_Disconnect {
+            get {
+                return ResourceManager.GetString("Connection_Disconnect", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Manage….
+        /// </summary>
+        public static string Connection_Manage {
+            get {
+                return ResourceManager.GetString("Connection_Manage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Connect to a server to browse indexes..
+        /// </summary>
+        public static string Connection_Prompt {
+            get {
+                return ResourceManager.GetString("Connection_Prompt", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0} of {1} indexes.
+        /// </summary>
+        public static string Grid_MatchCount {
+            get {
+                return ResourceManager.GetString("Grid_MatchCount", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to No indexes.
+        /// </summary>
+        public static string Grid_EmptyTitle {
+            get {
+                return ResourceManager.GetString("Grid_EmptyTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Connect to a server to browse indexes..
+        /// </summary>
+        public static string Grid_EmptyMessage {
+            get {
+                return ResourceManager.GetString("Grid_EmptyMessage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to No matches.
+        /// </summary>
+        public static string Grid_NoMatchesTitle {
+            get {
+                return ResourceManager.GetString("Grid_NoMatchesTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to No index matches the current filter..
+        /// </summary>
+        public static string Grid_NoMatchesMessage {
+            get {
+                return ResourceManager.GetString("Grid_NoMatchesMessage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Clear filter.
+        /// </summary>
+        public static string Grid_ClearFilter {
+            get {
+                return ResourceManager.GetString("Grid_ClearFilter", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Select an index to see its details..
+        /// </summary>
+        public static string Detail_Empty {
+            get {
+                return ResourceManager.GetString("Detail_Empty", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Copy.
+        /// </summary>
+        public static string Detail_Copy {
+            get {
+                return ResourceManager.GetString("Detail_Copy", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Structure.
+        /// </summary>
+        public static string Detail_Section_Structure {
+            get {
+                return ResourceManager.GetString("Detail_Section_Structure", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Usage.
+        /// </summary>
+        public static string Detail_Section_Usage {
+            get {
+                return ResourceManager.GetString("Detail_Section_Usage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Provider properties.
+        /// </summary>
+        public static string Detail_Section_ProviderProps {
+            get {
+                return ResourceManager.GetString("Detail_Section_ProviderProps", resourceCulture);
+            }
+        }
     }
 }
