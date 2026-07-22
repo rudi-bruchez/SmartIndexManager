@@ -38,6 +38,10 @@ public sealed class RestoreService
 
         foreach (var entry in entries)
         {
+            // Already-restored entries are idempotent; skip them even if the caller passes them.
+            if (entry.Status == IndexDeletionStatus.Restored)
+                continue;
+
             try
             {
                 var filePath = Path.Combine(session.Directory, entry.File);
@@ -47,6 +51,10 @@ public sealed class RestoreService
                 if (await provider.IndexExistsAsync(entry.Database, entry.Schema, entry.Table, entry.Index, cancellationToken).ConfigureAwait(false))
                     throw new InvalidOperationException($"Index {entry.Schema}.{entry.Table}.{entry.Index} already exists.");
 
+                // Table-existence pre-check: the backup DDL references a schema/table, and replaying it
+                // against a missing table would fail. The companion script sql/sqlserver/table-exists.sql
+                // is available for providers that expose a TableExists check; until then ExecuteDdlAsync
+                // surfaces the missing-table error from the server.
                 var ddl = File.ReadAllText(filePath);
                 await provider.ExecuteDdlAsync(entry.Database, ddl, cancellationToken).ConfigureAwait(false);
 

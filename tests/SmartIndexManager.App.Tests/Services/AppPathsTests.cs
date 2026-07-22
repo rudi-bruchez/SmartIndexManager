@@ -32,4 +32,32 @@ public class AppPathsTests
         Assert.Equal("/custom/backups", paths.DefaultBackupRoot);
         Assert.Equal("/custom/snaps", paths.SnapshotRoot);
     }
+
+    [Fact]
+    public void ReloadSettings_re_reads_settings_file_and_updates_roots()
+    {
+        var dir = Directory.CreateTempSubdirectory("sim-apppaths-").FullName;
+        try
+        {
+            new SettingsService().Save(dir, new AppSettings
+            {
+                DefaultBackupRoot = "/updated/backups",
+                SnapshotRoot = "/updated/snaps"
+            });
+
+            var paths = new AppPaths(configDir: dir, documentsDir: "/docs", sqlScriptRoot: "/sql");
+            Assert.NotEqual("/updated/backups", paths.DefaultBackupRoot);
+
+            paths.ReloadSettings();
+
+            Assert.Equal("/updated/backups", paths.DefaultBackupRoot);
+            Assert.Equal("/updated/snaps", paths.SnapshotRoot);
+            Assert.Equal("/updated/backups", paths.Settings.DefaultBackupRoot);
+            Assert.Equal("/updated/snaps", paths.Settings.SnapshotRoot);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
 }

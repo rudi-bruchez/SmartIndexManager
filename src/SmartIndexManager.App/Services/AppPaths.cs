@@ -4,20 +4,30 @@ namespace SmartIndexManager.App.Services;
 
 public sealed class AppPaths : IAppPaths
 {
+    private readonly string _documentsDir;
+
     public string ConfigDir { get; }
-    public string SnapshotRoot { get; }
-    public string DefaultBackupRoot { get; }
+    public string SnapshotRoot { get; private set; }
+    public string DefaultBackupRoot { get; private set; }
     public string SqlScriptRoot { get; }
-    public AppSettings Settings { get; }
+    public AppSettings Settings { get; private set; }
 
     public AppPaths(string configDir, string documentsDir, string sqlScriptRoot, AppSettings? settings = null)
     {
+        _documentsDir = documentsDir;
         Settings = settings ?? new AppSettings();
         ConfigDir = configDir;
         // SnapshotStore appends its own "snapshots" segment, so the root is the config dir by default.
         SnapshotRoot = Settings.SnapshotRoot ?? configDir;
         DefaultBackupRoot = Settings.DefaultBackupRoot ?? Path.Combine(documentsDir, "SmartIndexManager");
         SqlScriptRoot = sqlScriptRoot;
+    }
+
+    public void ReloadSettings()
+    {
+        Settings = new SettingsService().Load(ConfigDir);
+        SnapshotRoot = Settings.SnapshotRoot ?? ConfigDir;
+        DefaultBackupRoot = Settings.DefaultBackupRoot ?? Path.Combine(_documentsDir, "SmartIndexManager");
     }
 
     public static AppPaths Default()

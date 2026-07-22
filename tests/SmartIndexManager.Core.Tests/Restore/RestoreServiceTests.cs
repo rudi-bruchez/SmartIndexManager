@@ -120,4 +120,45 @@ public class RestoreServiceTests : IDisposable
         var updated = ManifestStore.Read(Path.Combine(sessionDir, "manifest.json"));
         Assert.All(updated.Indexes, e => Assert.Equal(IndexDeletionStatus.Restored, e.Status));
     }
+
+    [Fact]
+    public async Task Restore_skips_entries_already_marked_restored()
+    {
+        var manifest = new Manifest
+        {
+            ToolVersion = "1.0.0",
+            CreatedUtc = DateTime.UtcNow,
+            Server = "PROD01",
+            Operator = "op",
+            Indexes =
+            [
+                new ManifestIndexEntry
+                {
+                    Database = "Sales", Schema = "dbo", Table = "Orders", Index = "IX_A",
+                    File = "Sales.dbo.Orders.IX_A.sql",
+                    Reason = "r", Status = IndexDeletionStatus.Restored
+                },
+                new ManifestIndexEntry
+                {
+                    Database = "Sales", Schema = "dbo", Table = "Orders", Index = "IX_B",
+                    File = "Sales.dbo.Orders.IX_B.sql",
+                    Reason = "r", Status = IndexDeletionStatus.Dropped
+                }
+            ]
+        };
+        var serverDir = Path.Combine(_dir, "PROD01");
+        var sessionDir = Directory.CreateDirectory(Path.Combine(serverDir, "2026-07-22T10-00-00Z")).FullName;
+        ManifestStore.Write(Path.Combine(sessionDir, "manifest.json"), manifest);
+        File.WriteAllText(Path.Combine(sessionDir, "Sales.dbo.Orders.IX_A.sql"), "CREATE NONCLUSTERED INDEX [IX_A] ON [dbo].[Orders] ([CustomerId] ASC);");
+        File.WriteAllText(Path.Combine(sessionDir, "Sales.dbo.Orders.IX_B.sql"), "CREATE NONCLUSTERED INDEX [IX_B] ON [dbo].[Orders] ([OrderDate] ASC);");
+
+        var service = new RestoreService();
+        var sessions = await service.FindSessionsAsync(_dir, "PROD01", CancellationToken.None);
+        var provider = new FakeProvider();
+        var result = await service.RestoreAsync(sessions[0], sessions[0].Entries, provider, Path.Combine(_auditDir, "audit.jsonl"), CancellationToken.None);
+
+        Assert.Single(result.Restored);
+        Assert.Single(provider.ExecutedDdl);
+        Assert.Contains(provider.ExecutedDdl, d => d.Contains("IX_B"));
+    }
 }

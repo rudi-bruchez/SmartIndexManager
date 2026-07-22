@@ -34,5 +34,6 @@ public sealed partial class SettingsViewModel : ViewModelBase
             SnapshotRoot = SnapshotRoot,
             SnapshotRetentionDays = SnapshotRetentionDays
         });
+        _paths.ReloadSettings();
     }
 }

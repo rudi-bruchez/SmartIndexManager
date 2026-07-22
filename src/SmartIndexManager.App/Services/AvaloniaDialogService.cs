@@ -24,8 +24,14 @@ public sealed class AvaloniaDialogService : IDialogService, IPasswordPrompt
             || desktop.MainWindow is null)
             return null;
 
+        if (cancellationToken.IsCancellationRequested)
+            return null;
+
         var vm = new PasswordPromptViewModel(connectionName);
         var dialog = new PasswordPromptWindow { DataContext = vm };
+
+        using var registration = cancellationToken.Register(
+            () => Dispatcher.UIThread.Post(dialog.Close));
 
         _ = vm.Result.Task.ContinueWith(
             _ => Dispatcher.UIThread.Post(dialog.Close),

@@ -25,4 +25,19 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal("/backups", loaded.DefaultBackupRoot);
         Assert.Equal(60, loaded.SnapshotRetentionDays);
     }
+
+    [Fact]
+    public void Save_reloads_app_paths_roots()
+    {
+        var paths = new AppPaths(_dir, _dir, _dir);
+        var vm = new SettingsViewModel(new SettingsService(), paths, new ResxLocalizer())
+        {
+            DefaultBackupRoot = "/live/backups",
+            SnapshotRoot = "/live/snaps"
+        };
+        vm.SaveCommand.Execute(null);
+
+        Assert.Equal("/live/backups", paths.DefaultBackupRoot);
+        Assert.Equal("/live/snaps", paths.SnapshotRoot);
+    }
 }

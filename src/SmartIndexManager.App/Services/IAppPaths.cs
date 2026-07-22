@@ -9,4 +9,6 @@ public interface IAppPaths
     string DefaultBackupRoot { get; }
     string SqlScriptRoot { get; }
     AppSettings Settings { get; }
+
+    void ReloadSettings();
 }
