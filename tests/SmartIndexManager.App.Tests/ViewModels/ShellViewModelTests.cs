@@ -1,4 +1,6 @@
 using System.Linq;
+using Microsoft.Extensions.DependencyInjection;
+using SmartIndexManager.App.Composition;
 using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.App.Tests.Fakes;
@@ -6,6 +8,7 @@ using SmartIndexManager.App.ViewModels;
 using SmartIndexManager.Core.Deletion;
 using SmartIndexManager.Core.Model;
 using SmartIndexManager.Core.Provider;
+using SmartIndexManager.Core.Settings;
 
 namespace SmartIndexManager.App.Tests.ViewModels;
 
@@ -40,9 +43,13 @@ public class ShellViewModelTests : IDisposable
             new NullPasswordPrompt(), connections, new NoDialogs(), new ResxLocalizer());
         var basket = new DeletionBasket();
         var dryRun = new DryRunViewModel(basket, paths, new ResxLocalizer());
-        var basketVm = new DeletionBasketViewModel(basket, new DeletionOrchestrator(Path.Combine(_dir, "audit.log")), dryRun, paths, new ResxLocalizer());
+        var basketVm = new DeletionBasketViewModel(basket, new DeletionOrchestrator(Path.Combine(_dir, "audit.jsonl")), dryRun, paths, new ResxLocalizer());
         var browse = new BrowseViewModel(new IndexGridViewModel(), basketVm, paths, new ResxLocalizer());
-        return new ShellViewModel(session, browse, new PermissionStatusViewModel(new ResxLocalizer()), new ThemeService(paths), new ResxLocalizer());
+        var restore = new RestoreViewModel(paths, new ResxLocalizer());
+        var audit = new AuditViewModel(paths, new ResxLocalizer());
+        var settings = new SettingsViewModel(new SettingsService(), paths, new ResxLocalizer());
+        return new ShellViewModel(session, browse, basketVm, restore, audit, settings,
+            new PermissionStatusViewModel(new ResxLocalizer()), new ThemeService(paths), new ResxLocalizer());
     }
 
     [Fact]
@@ -61,7 +68,7 @@ public class ShellViewModelTests : IDisposable
         var last = shell.Destinations[^1];   // Settings, by position (title is localized, so assert by position)
         shell.SelectedDestination = last;
         Assert.Same(last.PageViewModel, shell.CurrentPage);
-        Assert.IsType<PlaceholderPageViewModel>(shell.CurrentPage);
+        Assert.IsType<SettingsViewModel>(shell.CurrentPage);
     }
 
     [Fact]
@@ -81,5 +88,17 @@ public class ShellViewModelTests : IDisposable
         shell.ToggleThemeCommand.Execute(null);
         Assert.NotEqual(before, shell.IsDarkTheme);
         Assert.Equal(shell.IsDarkTheme, new ThemeService(new AppPaths(_dir, _dir, _dir)).Current == ThemeVariantKind.Dark);
+    }
+
+    [Fact]
+    public void Ctor_builds_destinations_without_dry_run_viewmodel()
+    {
+        var provider = new ServiceCollection().AddAppServices("/tmp/sql/sqlserver").BuildServiceProvider();
+        var shell = provider.GetRequiredService<ShellViewModel>();
+        Assert.Contains(shell.Destinations, d => d.PageViewModel is DeletionBasketViewModel);
+        Assert.Contains(shell.Destinations, d => d.PageViewModel is RestoreViewModel);
+        Assert.Contains(shell.Destinations, d => d.PageViewModel is AuditViewModel);
+        Assert.Contains(shell.Destinations, d => d.PageViewModel is SettingsViewModel);
+        Assert.DoesNotContain(shell.Destinations, d => d.PageViewModel is DryRunViewModel);
     }
 }

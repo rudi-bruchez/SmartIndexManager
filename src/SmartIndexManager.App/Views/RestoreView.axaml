@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             xmlns:persistence="clr-namespace:SmartIndexManager.Core.Persistence;assembly=SmartIndexManager.Core"
+             x:Class="SmartIndexManager.App.Views.RestoreView"
+             x:DataType="vm:RestoreViewModel">
+    <DockPanel Margin="8">
+        <TextBlock DockPanel.Dock="Top" Text="{Binding StatusMessage}" />
+        <ListBox ItemsSource="{Binding Sessions}">
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:RestoreSessionViewModel">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                        <ItemsControl ItemsSource="{Binding Entries}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="persistence:ManifestIndexEntry">
+                                    <TextBlock Text="{Binding Index}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</UserControl>

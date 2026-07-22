@@ -9,7 +9,12 @@ namespace SmartIndexManager.App.ViewModels;
 public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly BrowseViewModel _browse;
+    private readonly DeletionBasketViewModel _basket;
+    private readonly RestoreViewModel _restore;
+    private readonly AuditViewModel _audit;
+    private readonly SettingsViewModel _settings;
     private readonly IThemeService _theme;
+    private readonly ILocalizer _loc;
 
     [ObservableProperty] private NavigationDestination? _selectedDestination;
     [ObservableProperty] private object? _currentPage;
@@ -21,25 +26,28 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
     public ShellViewModel(
         ConnectionSessionViewModel connection, BrowseViewModel browse,
+        DeletionBasketViewModel basket, RestoreViewModel restore,
+        AuditViewModel audit, SettingsViewModel settings,
         PermissionStatusViewModel permissions, IThemeService theme, ILocalizer loc)
     {
         Connection = connection;
         _browse = browse;
+        _basket = basket;
+        _restore = restore;
+        _audit = audit;
+        _settings = settings;
         Permissions = permissions;
         _theme = theme;
+        _loc = loc;
         IsDarkTheme = _theme.Current == ThemeVariantKind.Dark;
 
         Destinations =
         [
             new NavigationDestination(loc["Nav_Browse"], MaterialIconKind.DatabaseSearch, browse),
-            new NavigationDestination(loc["Nav_Basket"], MaterialIconKind.DeleteSweepOutline,
-                new PlaceholderPageViewModel(loc["Nav_Basket"], MaterialIconKind.DeleteSweepOutline, loc["Placeholder_Message"])),
-            new NavigationDestination(loc["Nav_Restore"], MaterialIconKind.BackupRestore,
-                new PlaceholderPageViewModel(loc["Nav_Restore"], MaterialIconKind.BackupRestore, loc["Placeholder_Message"])),
-            new NavigationDestination(loc["Nav_Audit"], MaterialIconKind.History,
-                new PlaceholderPageViewModel(loc["Nav_Audit"], MaterialIconKind.History, loc["Placeholder_Message"])),
-            new NavigationDestination(loc["Nav_Settings"], MaterialIconKind.CogOutline,
-                new PlaceholderPageViewModel(loc["Nav_Settings"], MaterialIconKind.CogOutline, loc["Placeholder_Message"])),
+            new NavigationDestination(loc["Nav_Basket"], MaterialIconKind.DeleteSweepOutline, basket),
+            new NavigationDestination(loc["Nav_Restore"], MaterialIconKind.BackupRestore, restore),
+            new NavigationDestination(loc["Nav_Audit"], MaterialIconKind.History, audit),
+            new NavigationDestination(loc["Nav_Settings"], MaterialIconKind.CogOutline, settings),
         ];
 
         Connection.Connected += OnConnectedAsync;
@@ -54,6 +62,12 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
     private async Task OnConnectedAsync(LoadResult result)
     {
         Permissions.Update(result.Permissions);
+        _basket.SetProvider(result.Provider);
+        _restore.SetProvider(result.Provider);
+        Permissions.QueryStore = new QueryStoreStatusViewModel(_loc);
+        Permissions.QueryStore.SetProvider(result.Provider, result.Rows.FirstOrDefault()?.Database ?? "");
+        await Permissions.QueryStore.LoadAsync(CancellationToken.None).ConfigureAwait(true);
+        await _audit.LoadAsync(CancellationToken.None).ConfigureAwait(true);
         await _browse.OnConnectedAsync(result.Provider, result.Rows, CancellationToken.None).ConfigureAwait(true);
         SelectedDestination = Destinations[0];
     }

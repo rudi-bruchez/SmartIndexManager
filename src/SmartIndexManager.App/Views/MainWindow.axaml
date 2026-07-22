@@ -16,6 +16,18 @@
         <DataTemplate DataType="vm:PlaceholderPageViewModel">
             <views:EmptyStateView />
         </DataTemplate>
+        <DataTemplate DataType="vm:DeletionBasketViewModel">
+            <views:DeletionBasketView />
+        </DataTemplate>
+        <DataTemplate DataType="vm:RestoreViewModel">
+            <views:RestoreView />
+        </DataTemplate>
+        <DataTemplate DataType="vm:AuditViewModel">
+            <views:AuditView />
+        </DataTemplate>
+        <DataTemplate DataType="vm:SettingsViewModel">
+            <views:SettingsView />
+        </DataTemplate>
     </Window.DataTemplates>
 
     <Window.KeyBindings>
