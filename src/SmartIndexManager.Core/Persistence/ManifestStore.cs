@@ -27,7 +27,9 @@ public static class ManifestStore
         Manifest manifest, string database, string schema, string table, string index, DateTime restoredUtc)
     {
         var updated = manifest.Indexes.Select(e =>
-            Matches(e, database, schema, table, index) ? e with { RestoredUtc = restoredUtc } : e).ToList();
+            Matches(e, database, schema, table, index)
+                ? e with { RestoredUtc = restoredUtc, Status = IndexDeletionStatus.Restored }
+                : e).ToList();
         return manifest with { Indexes = updated };
     }
 
