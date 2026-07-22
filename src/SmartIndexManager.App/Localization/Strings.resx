@@ -151,6 +151,9 @@
   <data name="Permission_ReadOnly" xml:space="preserve">
     <value>Read-only: ALTER permission missing</value>
   </data>
+  <data name="QueryStore_Status" xml:space="preserve">
+    <value>Query Store: {0}</value>
+  </data>
   <data name="Detail_OldestSnapshot" xml:space="preserve">
     <value>Observed since {0}</value>
   </data>

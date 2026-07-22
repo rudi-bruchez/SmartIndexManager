@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
              x:Class="SmartIndexManager.App.Views.PermissionStatusBar"
              x:DataType="vm:PermissionStatusViewModel">
     <StackPanel Orientation="Horizontal" Spacing="12" Margin="8,4">
@@ -12,5 +13,6 @@
                 <DataTemplate><TextBlock Text="{Binding}" Foreground="#B5651D" /></DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+        <ContentControl Content="{Binding QueryStore}" IsVisible="{Binding QueryStore, Converter={x:Static ObjectConverters.IsNotNull}}" />
     </StackPanel>
 </UserControl>

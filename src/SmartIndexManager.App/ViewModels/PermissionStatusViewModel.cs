@@ -10,6 +10,7 @@ public sealed partial class PermissionStatusViewModel : ViewModelBase
 
     [ObservableProperty] private bool _usageAvailable = true;
     [ObservableProperty] private bool _readOnly;
+    [ObservableProperty] private QueryStoreStatusViewModel? _queryStore;
 
     public IReadOnlyList<string> Messages { get; private set; } = [];
 

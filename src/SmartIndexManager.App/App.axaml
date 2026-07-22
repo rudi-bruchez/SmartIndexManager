@@ -2,6 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:semi="https://irihi.tech/semi"
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             xmlns:views="clr-namespace:SmartIndexManager.App.Views"
              x:Class="SmartIndexManager.App.App"
              RequestedThemeVariant="Default">
     <Application.Styles>
@@ -31,4 +33,12 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
+    <Application.DataTemplates>
+        <DataTemplate DataType="vm:QueryStoreStatusViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding Label}" />
+                <Button Content="Enable Query Store" Command="{Binding EnableCommand}" IsVisible="{Binding CanEnable}" />
+            </StackPanel>
+        </DataTemplate>
+    </Application.DataTemplates>
 </Application>
