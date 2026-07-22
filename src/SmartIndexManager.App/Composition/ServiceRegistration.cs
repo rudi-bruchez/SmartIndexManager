@@ -20,6 +20,7 @@ public static class ServiceRegistration
         services.AddSingleton<IIndexLoadService, IndexLoadService>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddTransient<ConnectionManagerViewModel>();
+        services.AddTransient<PasswordPromptViewModel>();
         services.AddSingleton<IndexGridViewModel>();
         services.AddSingleton<PermissionStatusViewModel>();
         services.AddSingleton<IPasswordPrompt, AvaloniaDialogService>();
