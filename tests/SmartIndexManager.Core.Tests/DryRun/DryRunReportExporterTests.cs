@@ -1,5 +1,4 @@
 using SmartIndexManager.Core.DryRun;
-using SmartIndexManager.Core.Model;
 using Xunit;
 
 namespace SmartIndexManager.Core.Tests.DryRun;

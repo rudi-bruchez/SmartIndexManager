@@ -7,7 +7,8 @@ public static class DryRunReportExporter
 {
     public static void ExportJson(string path, DryRunReport report)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         File.WriteAllText(path, JsonSerializer.Serialize(report, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -17,9 +18,10 @@ public static class DryRunReportExporter
 
     public static void ExportMarkdown(string path, DryRunReport report)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         var sb = new StringBuilder();
-        sb.AppendLine($"# Dry-run report — {report.Server}");
+        sb.AppendLine($"# Dry-run report - {report.Server}");
         sb.AppendLine();
         sb.AppendLine($"- Created (UTC): {report.CreatedUtc:O}");
         sb.AppendLine($"- Instance uptime: {report.UptimeDays} days");
