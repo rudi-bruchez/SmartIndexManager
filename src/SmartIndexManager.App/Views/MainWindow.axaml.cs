@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Styling;
 using SmartIndexManager.App.ViewModels;
 
@@ -14,6 +15,15 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Q && e.KeyModifiers == KeyModifiers.Control)
+        {
+            e.Handled = true;
+            Close();
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)

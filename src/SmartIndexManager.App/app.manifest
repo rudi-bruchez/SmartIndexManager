@@ -15,4 +15,14 @@
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
     </application>
   </compatibility>
+
+  <!-- Declare per-monitor DPI awareness so Windows applies the correct scale factor
+       on high-DPI and multi-monitor setups. Avalonia also sets this programmatically,
+       but the manifest ensures the OS sees it before any window is created. -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">permonitorv2, system</dpiAwareness>
+    </windowsSettings>
+  </application>
 </assembly>

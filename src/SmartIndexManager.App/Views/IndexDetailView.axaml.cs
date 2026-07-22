@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using SmartIndexManager.App.ViewModels;
@@ -14,7 +15,11 @@ public partial class IndexDetailView : UserControl
         try
         {
             if (DataContext is IndexDetailViewModel vm && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
-                await clipboard.SetTextAsync(vm.Ddl);
+            {
+                var data = new DataTransfer();
+                data.Add(DataTransferItem.CreateText(vm.Ddl));
+                await clipboard.SetDataAsync(data);
+            }
         }
         catch
         {

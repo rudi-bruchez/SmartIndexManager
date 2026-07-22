@@ -6,7 +6,8 @@
         xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="SmartIndexManager.App.Views.MainWindow"
         x:DataType="vm:ShellViewModel"
-        Width="1200" Height="800" Title="{x:Static loc:Strings.App_Title}">
+        Width="1200" Height="800" Title="{x:Static loc:Strings.App_Title}"
+        KeyDown="OnKeyDown">
 
     <Window.DataTemplates>
         <DataTemplate DataType="vm:BrowseViewModel">
@@ -39,7 +40,7 @@
                 BorderBrush="{DynamicResource SemiColorBorder}">
             <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                 <TextBox Grid.Column="0" MinWidth="220"
-                         Watermark="{x:Static loc:Strings.Connection_DatabasesWatermark}"
+                         PlaceholderText="{x:Static loc:Strings.Connection_DatabasesWatermark}"
                          Text="{Binding Connection.Connections.DatabasesText}" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                     <Button Content="{x:Static loc:Strings.Action_Connect}" Command="{Binding Connection.ConnectCommand}"
