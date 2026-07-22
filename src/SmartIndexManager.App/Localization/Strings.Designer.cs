@@ -635,7 +635,16 @@ namespace SmartIndexManager.App.Localization {
                 return ResourceManager.GetString("Action_Delete", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Generating script....
+        /// </summary>
+        public static string Action_GenerateScript {
+            get {
+                return ResourceManager.GetString("Action_GenerateScript", resourceCulture);
+            }
+        }
+        
         /// <summary>
         ///   Looks up a localized string similar to Reliability: {0}.
         /// </summary>

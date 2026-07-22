@@ -74,6 +74,21 @@ public class BrowseViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task OnDisconnected_clears_basket()
+    {
+        var vm = Build();
+        var index = IndexModelFactory.Nonclustered();
+        var rows = new[] { new IndexRowViewModel(index, null, Safe(), false, false) };
+        await vm.OnConnectedAsync(Provider(index), rows, CancellationToken.None);
+        vm.Basket.Add(index, Safe(), null);
+        Assert.Single(vm.Basket.Entries);
+
+        await vm.OnDisconnectedAsync();
+
+        Assert.Empty(vm.Basket.Entries);
+    }
+
+    [Fact]
     public async Task ShowDetailAsync_sets_error_state_when_detail_load_fails()
     {
         var vm = Build();

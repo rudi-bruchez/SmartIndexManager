@@ -48,9 +48,15 @@ public sealed partial class DeletionBasketViewModel : ViewModelBase
     {
         if (_provider is null || _basket.Entries.Count == 0) return;
         IsBusy = true;
-        await _dryRun.LoadAsync(cancellationToken).ConfigureAwait(true);
-        ActiveDryRun = _dryRun;
-        IsBusy = false;
+        try
+        {
+            await _dryRun.LoadAsync(cancellationToken).ConfigureAwait(true);
+            ActiveDryRun = _dryRun;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]
@@ -70,7 +76,7 @@ public sealed partial class DeletionBasketViewModel : ViewModelBase
     {
         if (_provider is null || _basket.Entries.Count == 0) return;
         IsBusy = true;
-        StatusMessage = _loc["Action_Delete"];
+        StatusMessage = _loc[mode == DeletionMode.Execute ? "Action_Delete" : "Action_GenerateScript"];
         try
         {
             var session = new DeletionSession(
@@ -99,7 +105,7 @@ public sealed partial class DeletionBasketViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void Clear()
+    public void Clear()
     {
         _basket.Clear();
         Refresh();

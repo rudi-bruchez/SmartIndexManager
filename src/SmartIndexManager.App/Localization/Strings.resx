@@ -265,6 +265,9 @@
   <data name="Action_Delete" xml:space="preserve">
     <value>Deleting indexes...</value>
   </data>
+  <data name="Action_GenerateScript" xml:space="preserve">
+    <value>Generating script...</value>
+  </data>
   <data name="DryRun_Reliability" xml:space="preserve">
     <value>Reliability: {0}</value>
   </data>

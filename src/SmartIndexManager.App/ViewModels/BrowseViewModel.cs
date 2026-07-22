@@ -66,6 +66,7 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
         await StopDetailWorkAsync().ConfigureAwait(true);
         Detail = null;
         Grid.SetRows([]);
+        Basket.Clear();
         ErrorMessage = null;
         State = BrowseState.Disconnected;
     }
