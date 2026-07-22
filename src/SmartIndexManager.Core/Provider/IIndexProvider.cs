@@ -35,4 +35,10 @@ public interface IIndexProvider : IAsyncDisposable
 
     Task DropIndexAsync(
         IndexRef index, TimeSpan timeout, CancellationToken cancellationToken = default);
+
+    Task ExecuteDdlAsync(
+        string database, string sql, CancellationToken cancellationToken = default);
+
+    Task<bool> IndexExistsAsync(
+        string database, string schema, string table, string index, CancellationToken cancellationToken = default);
 }

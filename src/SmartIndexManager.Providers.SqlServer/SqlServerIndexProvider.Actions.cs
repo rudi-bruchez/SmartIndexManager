@@ -49,5 +49,35 @@ public sealed partial class SqlServerIndexProvider
         await _executor.ScalarAsync<bool?>(script, parameters, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task ExecuteDdlAsync(string database, string sql, CancellationToken cancellationToken = default)
+    {
+        var script = SqlScriptLoader.Load(_scriptRoot, "database-exists");
+        var exists = await _executor.ScalarAsync<bool>(
+            script, new Dictionary<string, object?> { ["@DatabaseName"] = database }, cancellationToken).ConfigureAwait(false);
+        if (!exists) throw new InvalidOperationException($"unknown database: {database}");
+
+        await UseDatabaseAsync(database, cancellationToken).ConfigureAwait(false);
+        await _executor.ExecuteAsync(sql, null, timeout: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<bool> IndexExistsAsync(
+        string database, string schema, string table, string index,
+        CancellationToken cancellationToken = default)
+    {
+        var script = SqlScriptLoader.Load(_scriptRoot, "database-exists");
+        var exists = await _executor.ScalarAsync<bool>(
+            script, new Dictionary<string, object?> { ["@DatabaseName"] = database }, cancellationToken).ConfigureAwait(false);
+        if (!exists) return false;
+
+        await UseDatabaseAsync(database, cancellationToken).ConfigureAwait(false);
+        var indexScript = SqlScriptLoader.Load(_scriptRoot, "index-exists");
+        return await _executor.ScalarAsync<bool>(indexScript, new Dictionary<string, object?>
+        {
+            ["@SchemaName"] = schema,
+            ["@TableName"] = table,
+            ["@IndexName"] = index
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
     private static string Quote(string identifier) => $"[{identifier.Replace("]", "]]")}]";
 }

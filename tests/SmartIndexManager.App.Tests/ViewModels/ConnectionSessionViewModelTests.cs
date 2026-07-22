@@ -74,6 +74,12 @@ public class ConnectionSessionViewModelTests : IDisposable
         public Task DropIndexAsync(IndexRef index, TimeSpan timeout, CancellationToken ct = default)
             => Task.CompletedTask;
 
+        public Task ExecuteDdlAsync(string database, string sql, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<bool> IndexExistsAsync(string database, string schema, string table, string index, CancellationToken ct = default)
+            => Task.FromResult(false);
+
         public ValueTask DisposeAsync()
         {
             Disposed = true;
@@ -124,6 +130,12 @@ public class ConnectionSessionViewModelTests : IDisposable
 
         public Task DropIndexAsync(IndexRef index, TimeSpan timeout, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task ExecuteDdlAsync(string database, string sql, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<bool> IndexExistsAsync(string database, string schema, string table, string index, CancellationToken ct = default)
+            => Task.FromResult(false);
 
         public ValueTask DisposeAsync()
         {
