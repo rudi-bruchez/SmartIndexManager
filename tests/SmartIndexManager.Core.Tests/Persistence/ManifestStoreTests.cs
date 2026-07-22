@@ -51,4 +51,36 @@ public class ManifestStoreTests : IDisposable
         var updated = ManifestStore.MarkRestored(Sample(), "Sales", "dbo", "Orders", "IX_Orders_Legacy", when);
         Assert.Equal(when, updated.Indexes[0].RestoredUtc);
     }
+
+    [Fact]
+    public void Pending_status_round_trips()
+    {
+        var manifest = Sample() with
+        {
+            Indexes =
+            [
+                Sample().Indexes[0] with { Status = IndexDeletionStatus.Pending }
+            ]
+        };
+        var path = Path.Combine(_dir, "pending.json");
+        ManifestStore.Write(path, manifest);
+        var read = ManifestStore.Read(path);
+        Assert.Equal(IndexDeletionStatus.Pending, read.Indexes[0].Status);
+    }
+
+    [Fact]
+    public void Restored_status_round_trips()
+    {
+        var manifest = Sample() with
+        {
+            Indexes =
+            [
+                Sample().Indexes[0] with { Status = IndexDeletionStatus.Restored, RestoredUtc = DateTime.UtcNow }
+            ]
+        };
+        var path = Path.Combine(_dir, "restored.json");
+        ManifestStore.Write(path, manifest);
+        var read = ManifestStore.Read(path);
+        Assert.Equal(IndexDeletionStatus.Restored, read.Indexes[0].Status);
+    }
 }

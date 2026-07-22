@@ -1,7 +1,7 @@
 namespace SmartIndexManager.Core.Persistence;
 
 public enum DeletionMode { Execute, Script }
-public enum IndexDeletionStatus { Dropped, Failed, Scripted }
+public enum IndexDeletionStatus { Dropped, Failed, Scripted, Pending, Restored }
 
 public sealed record ManifestStats
 {
