@@ -262,4 +262,13 @@
   <data name="Detail_Section_ProviderProps" xml:space="preserve">
     <value>Provider properties</value>
   </data>
+  <data name="Action_Delete" xml:space="preserve">
+    <value>Deleting indexes...</value>
+  </data>
+  <data name="DryRun_Reliability" xml:space="preserve">
+    <value>Reliability: {0}</value>
+  </data>
+  <data name="DryRun_Summary" xml:space="preserve">
+    <value>{0} indexes, {1:0.0} MB freed</value>
+  </data>
 </root>

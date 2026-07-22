@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.Core.Provider;
@@ -19,6 +20,7 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty] private string? _errorMessage;
 
     public IndexGridViewModel Grid { get; }
+    public DeletionBasketViewModel Basket { get; }
 
     public IndexDetailViewModel? Detail
     {
@@ -26,12 +28,21 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
         private set { _detail = value; OnPropertyChanged(nameof(Detail)); }
     }
 
-    public BrowseViewModel(IndexGridViewModel grid, IAppPaths paths, ILocalizer loc)
+    public BrowseViewModel(IndexGridViewModel grid, DeletionBasketViewModel basket, IAppPaths paths, ILocalizer loc)
     {
         Grid = grid;
+        Basket = basket;
         _paths = paths;
         _loc = loc;
         Grid.PropertyChanged += OnGridPropertyChanged;
+    }
+
+    [RelayCommand]
+    private void AddSelectedToBasket()
+    {
+        var row = Grid.SelectedRow;
+        if (row is null || row.NotDeletable) return;
+        Basket.Add(row.Index, row.Safety, row.ScoreDetail);
     }
 
     private void OnGridPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
@@ -43,6 +54,7 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
     public async Task OnConnectedAsync(IIndexProvider provider, IReadOnlyList<IndexRowViewModel> rows, CancellationToken ct)
     {
         await StopDetailWorkAsync().ConfigureAwait(true);
+        Basket.SetProvider(provider);
         Detail = new IndexDetailViewModel(provider, _paths, _loc);
         Grid.SetRows(rows);
         ErrorMessage = null;

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.App.ViewModels;
+using SmartIndexManager.Core.Deletion;
 using SmartIndexManager.Providers.SqlServer;
 
 namespace SmartIndexManager.App.Composition;
@@ -25,6 +26,10 @@ public static class ServiceRegistration
         services.AddSingleton<PermissionStatusViewModel>();
         services.AddSingleton<IPasswordPrompt, AvaloniaDialogService>();
         services.AddSingleton<IDialogService, AvaloniaDialogService>();
+        services.AddSingleton<DeletionBasket>();
+        services.AddSingleton(sp => new DeletionOrchestrator(Path.Combine(sp.GetRequiredService<IAppPaths>().ConfigDir, "audit.log")));
+        services.AddSingleton<DryRunViewModel>();
+        services.AddSingleton<DeletionBasketViewModel>();
         services.AddSingleton<BrowseViewModel>();
         services.AddSingleton<ConnectionSessionViewModel>();
         services.AddSingleton<ShellViewModel>();

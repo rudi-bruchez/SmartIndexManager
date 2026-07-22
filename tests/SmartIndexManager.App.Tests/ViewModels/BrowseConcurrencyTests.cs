@@ -2,6 +2,7 @@ using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.App.Tests.Fakes;
 using SmartIndexManager.App.ViewModels;
+using SmartIndexManager.Core.Deletion;
 using SmartIndexManager.Core.Model;
 using SmartIndexManager.Core.Provider;
 
@@ -22,7 +23,11 @@ public class BrowseConcurrencyTests : IDisposable
             Permissions = new PermissionReport { CanViewState = true, CanAlter = true, CanAccessQueryStore = true },
             Indexes = [IndexModelFactory.Nonclustered(name: "IX_A"), IndexModelFactory.Nonclustered(name: "IX_B")]
         };
-        var vm = new BrowseViewModel(new IndexGridViewModel(), new AppPaths(_dir, _dir, _dir), new ResxLocalizer());
+        var paths = new AppPaths(_dir, _dir, _dir);
+        var basket = new DeletionBasket();
+        var dryRun = new DryRunViewModel(basket, paths, new ResxLocalizer());
+        var basketVm = new DeletionBasketViewModel(basket, new DeletionOrchestrator(Path.Combine(_dir, "audit.log")), dryRun, paths, new ResxLocalizer());
+        var vm = new BrowseViewModel(new IndexGridViewModel(), basketVm, paths, new ResxLocalizer());
         var rows = probe.Indexes.Select(i => new IndexRowViewModel(i, null, new Core.Safety.SafetyAssessment(Core.Safety.DeletionEligibility.Deletable, null, []), false, false)).ToList();
         await vm.OnConnectedAsync(probe, rows, CancellationToken.None);
 

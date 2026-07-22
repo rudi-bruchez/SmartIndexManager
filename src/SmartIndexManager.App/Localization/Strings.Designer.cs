@@ -626,5 +626,32 @@ namespace SmartIndexManager.App.Localization {
                 return ResourceManager.GetString("Detail_Section_ProviderProps", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Deleting indexes....
+        /// </summary>
+        public static string Action_Delete {
+            get {
+                return ResourceManager.GetString("Action_Delete", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Reliability: {0}.
+        /// </summary>
+        public static string DryRun_Reliability {
+            get {
+                return ResourceManager.GetString("DryRun_Reliability", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0} indexes, {1:0.0} MB freed.
+        /// </summary>
+        public static string DryRun_Summary {
+            get {
+                return ResourceManager.GetString("DryRun_Summary", resourceCulture);
+            }
+        }
     }
 }

@@ -8,6 +8,7 @@ public sealed class IndexRowViewModel : ViewModelBase
 {
     public IndexModel Index { get; }
     public ConfidenceScore? ScoreDetail { get; }
+    public SafetyAssessment Safety { get; }
 
     public IndexRowViewModel(
         IndexModel index, ConfidenceScore? score, SafetyAssessment safety,
@@ -15,6 +16,7 @@ public sealed class IndexRowViewModel : ViewModelBase
     {
         Index = index;
         ScoreDetail = score;
+        Safety = safety;
         NotDeletable = safety.Eligibility == DeletionEligibility.NotDeletable;
         NotDeletableReason = safety.BlockReason;
         Redundant = isRedundant;

@@ -3,6 +3,7 @@ using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.App.Tests.Fakes;
 using SmartIndexManager.App.ViewModels;
+using SmartIndexManager.Core.Deletion;
 using SmartIndexManager.Core.Model;
 using SmartIndexManager.Core.Provider;
 
@@ -37,7 +38,10 @@ public class ShellViewModelTests : IDisposable
         var session = new ConnectionSessionViewModel(
             new IndexLoadService(new FakeIndexProviderFactory(provider), paths),
             new NullPasswordPrompt(), connections, new NoDialogs(), new ResxLocalizer());
-        var browse = new BrowseViewModel(new IndexGridViewModel(), paths, new ResxLocalizer());
+        var basket = new DeletionBasket();
+        var dryRun = new DryRunViewModel(basket, paths, new ResxLocalizer());
+        var basketVm = new DeletionBasketViewModel(basket, new DeletionOrchestrator(Path.Combine(_dir, "audit.log")), dryRun, paths, new ResxLocalizer());
+        var browse = new BrowseViewModel(new IndexGridViewModel(), basketVm, paths, new ResxLocalizer());
         return new ShellViewModel(session, browse, new PermissionStatusViewModel(new ResxLocalizer()), new ThemeService(paths), new ResxLocalizer());
     }
 

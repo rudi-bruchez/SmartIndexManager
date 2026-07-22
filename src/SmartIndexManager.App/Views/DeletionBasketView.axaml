@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             xmlns:views="clr-namespace:SmartIndexManager.App.Views"
+             xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+             x:Class="SmartIndexManager.App.Views.DeletionBasketView"
+             x:DataType="vm:DeletionBasketViewModel">
+    <DockPanel Margin="8">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
+            <Button Content="Clear" Command="{Binding ClearCommand}" />
+            <Button Content="Run dry-run" Command="{Binding RunDryRunCommand}" />
+            <Button Content="Delete" Command="{Binding DeleteCommand}" IsEnabled="{Binding IsConfirmed}" />
+            <Button Content="Generate script" Command="{Binding GenerateScriptCommand}" />
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Width="80" />
+        </StackPanel>
+        <CheckBox DockPanel.Dock="Bottom" Content="I understand that this action is irreversible" IsChecked="{Binding IsConfirmed}" />
+        <Grid DockPanel.Dock="Bottom" RowDefinitions="Auto,*">
+            <TextBlock Grid.Row="0" Text="{Binding StatusMessage}" />
+            <ContentControl Grid.Row="1" Content="{Binding ActiveDryRun}" IsVisible="{Binding ActiveDryRun, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <ContentControl.DataTemplates>
+                    <DataTemplate DataType="vm:DryRunViewModel">
+                        <views:DryRunView DataContext="{Binding}" />
+                    </DataTemplate>
+                </ContentControl.DataTemplates>
+            </ContentControl>
+        </Grid>
+        <DataGrid ItemsSource="{Binding Entries}" IsReadOnly="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Index" Binding="{Binding DisplayName}" />
+                <DataGridTextColumn Header="Warnings" Binding="{Binding Warnings}" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

@@ -2,6 +2,7 @@ using SmartIndexManager.App.Localization;
 using SmartIndexManager.App.Services;
 using SmartIndexManager.App.Tests.Fakes;
 using SmartIndexManager.App.ViewModels;
+using SmartIndexManager.Core.Deletion;
 using SmartIndexManager.Core.Model;
 using SmartIndexManager.Core.Provider;
 
@@ -24,7 +25,14 @@ public class BrowseViewModelTests : IDisposable
     };
 
     private BrowseViewModel Build() =>
-        new(new IndexGridViewModel(), new AppPaths(_dir, _dir, _dir), new ResxLocalizer());
+        new(new IndexGridViewModel(), BasketViewModel(), new AppPaths(_dir, _dir, _dir), new ResxLocalizer());
+
+    private DeletionBasketViewModel BasketViewModel()
+    {
+        var basket = new DeletionBasket();
+        var paths = new AppPaths(_dir, _dir, _dir);
+        return new DeletionBasketViewModel(basket, new DeletionOrchestrator(Path.Combine(_dir, "audit.log")), new DryRunViewModel(basket, paths, new ResxLocalizer()), paths, new ResxLocalizer());
+    }
 
     [Fact]
     public void Starts_disconnected()
