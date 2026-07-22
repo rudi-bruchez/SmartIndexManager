@@ -22,6 +22,7 @@ public static class ServiceRegistration
         services.AddTransient<ConnectionManagerViewModel>();
         services.AddSingleton<IndexGridViewModel>();
         services.AddSingleton<PermissionStatusViewModel>();
+        services.AddSingleton<IPasswordPrompt, AvaloniaDialogService>();
         services.AddSingleton<IDialogService, AvaloniaDialogService>();
         services.AddSingleton<BrowseViewModel>();
         services.AddSingleton<ConnectionSessionViewModel>();

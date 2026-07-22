@@ -19,9 +19,6 @@ public partial class App : Application
         var paths = AppPaths.Default();
         var services = new ServiceCollection()
             .AddAppServices(paths.SqlScriptRoot)
-            // The real password prompt (a dialog) is added in Task 3b; for read-only browsing
-            // register a console-less prompt that returns null so SqlLogin connects are gated in the UI.
-            .AddSingleton<IPasswordPrompt, NullPasswordPrompt>()
             .BuildServiceProvider();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
