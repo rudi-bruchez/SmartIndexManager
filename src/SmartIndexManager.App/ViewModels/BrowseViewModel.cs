@@ -37,7 +37,7 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
         Grid.PropertyChanged += OnGridPropertyChanged;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanAddSelectedToBasket))]
     private void AddSelectedToBasket()
     {
         var row = Grid.SelectedRow;
@@ -45,10 +45,15 @@ public sealed partial class BrowseViewModel : ViewModelBase, IAsyncDisposable
         Basket.Add(row.Index, row.Safety, row.ScoreDetail);
     }
 
+    private bool CanAddSelectedToBasket() => Grid.SelectedRow is { NotDeletable: false };
+
     private void OnGridPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(IndexGridViewModel.SelectedRow))
+        {
+            AddSelectedToBasketCommand.NotifyCanExecuteChanged();
             _ = ShowDetailAsync(Grid.SelectedRow);
+        }
     }
 
     public async Task OnConnectedAsync(IIndexProvider provider, IReadOnlyList<IndexRowViewModel> rows, CancellationToken ct)

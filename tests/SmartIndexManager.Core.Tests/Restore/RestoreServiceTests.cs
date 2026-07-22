@@ -29,6 +29,7 @@ public class RestoreServiceTests : IDisposable
             { CanViewState = true, CanAlter = true, CanAccessQueryStore = true };
 
         public List<string> ExecutedDdl { get; } = [];
+        public bool TableExists { get; init; } = true;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         public Task<IReadOnlyList<IndexModel>> GetIndexesAsync(IReadOnlyList<string> databases, CancellationToken ct) => Task.FromResult<IReadOnlyList<IndexModel>>([]);
         public Task<IReadOnlyList<QueryUsage>> GetQueryUsageAsync(IndexRef index, CancellationToken ct) => Task.FromResult<IReadOnlyList<QueryUsage>>([]);
@@ -42,6 +43,7 @@ public class RestoreServiceTests : IDisposable
             return Task.CompletedTask;
         }
         public Task<bool> IndexExistsAsync(string database, string schema, string table, string index, CancellationToken ct) => Task.FromResult(false);
+        public Task<bool> TableExistsAsync(string database, string schema, string table, CancellationToken ct) => Task.FromResult(TableExists);
     }
 
     [Fact]
@@ -77,6 +79,41 @@ public class RestoreServiceTests : IDisposable
 
         Assert.Single(result.Restored);
         Assert.Single(provider.ExecutedDdl);
+    }
+
+    [Fact]
+    public async Task Restore_fails_when_target_table_is_missing()
+    {
+        var manifest = new Manifest
+        {
+            ToolVersion = "1.0.0",
+            CreatedUtc = DateTime.UtcNow,
+            Server = "PROD01",
+            Operator = "op",
+            Indexes =
+            [
+                new ManifestIndexEntry
+                {
+                    Database = "Sales", Schema = "dbo", Table = "Orders", Index = "IX_A",
+                    File = "Sales.dbo.Orders.IX_A.sql",
+                    Reason = "r", Status = IndexDeletionStatus.Dropped
+                }
+            ]
+        };
+        var serverDir = Path.Combine(_dir, "PROD01");
+        var sessionDir = Directory.CreateDirectory(Path.Combine(serverDir, "2026-07-22T10-00-00Z")).FullName;
+        ManifestStore.Write(Path.Combine(sessionDir, "manifest.json"), manifest);
+        File.WriteAllText(Path.Combine(sessionDir, "Sales.dbo.Orders.IX_A.sql"), "CREATE NONCLUSTERED INDEX [IX_A] ON [dbo].[Orders] ([CustomerId] ASC);");
+
+        var service = new RestoreService();
+        var sessions = await service.FindSessionsAsync(_dir, "PROD01", CancellationToken.None);
+        var provider = new FakeProvider { TableExists = false };
+        var result = await service.RestoreAsync(sessions[0], sessions[0].Entries, provider, Path.Combine(_auditDir, "audit.jsonl"), CancellationToken.None);
+
+        Assert.Single(result.Failed);
+        Assert.Empty(result.Restored);
+        Assert.Empty(provider.ExecutedDdl);
+        Assert.Contains("Orders", result.Failed[0].Error);
     }
 
     [Fact]

@@ -64,9 +64,18 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         Permissions.Update(result.Permissions);
         _basket.SetProvider(result.Provider);
         _restore.SetProvider(result.Provider);
-        Permissions.QueryStore = new QueryStoreStatusViewModel(_loc);
-        Permissions.QueryStore.SetProvider(result.Provider, result.Rows.FirstOrDefault()?.Database ?? "");
-        await Permissions.QueryStore.LoadAsync(CancellationToken.None).ConfigureAwait(true);
+        // Query Store is per-database; only query it when the browsed set actually has a database.
+        var queryStoreDatabase = result.Rows.FirstOrDefault()?.Database;
+        if (!string.IsNullOrEmpty(queryStoreDatabase))
+        {
+            Permissions.QueryStore = new QueryStoreStatusViewModel(_loc);
+            Permissions.QueryStore.SetProvider(result.Provider, queryStoreDatabase);
+            await Permissions.QueryStore.LoadAsync(CancellationToken.None).ConfigureAwait(true);
+        }
+        else
+        {
+            Permissions.QueryStore = null;
+        }
         await _audit.LoadAsync(CancellationToken.None).ConfigureAwait(true);
         await _browse.OnConnectedAsync(result.Provider, result.Rows, CancellationToken.None).ConfigureAwait(true);
         SelectedDestination = Destinations[0];

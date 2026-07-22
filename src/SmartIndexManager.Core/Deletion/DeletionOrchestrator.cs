@@ -173,7 +173,8 @@ public sealed class DeletionOrchestrator
             }
             else
             {
-                scriptBuilder?.AppendLine($"DROP INDEX {Quote(index.Name)} ON {Quote(index.Schema)}.{Quote(index.Table)};");
+                scriptBuilder?.AppendLine($"USE {SqlIdentifier.Quote(index.Database)};");
+                scriptBuilder?.AppendLine(SqlServerDdlGenerator.GenerateDropStatement(index.Schema, index.Table, index.Name));
                 manifestEntry = manifestEntry with { Status = IndexDeletionStatus.Scripted };
             }
             manifestEntries[^1] = manifestEntry;
@@ -208,8 +209,9 @@ public sealed class DeletionOrchestrator
 
     private static string BuildReason(IndexModel index, ConfidenceScore? score)
     {
+        var reads = index.Usage.Seeks + index.Usage.Scans + index.Usage.Lookups;
         var sb = new StringBuilder();
-        sb.Append($"0 reads, {index.Usage.Updates} updates");
+        sb.Append($"{reads} reads, {index.Usage.Updates} updates");
         if (score is not null) sb.Append($", score {score.Value}");
         return sb.ToString();
     }
@@ -226,6 +228,4 @@ public sealed class DeletionOrchestrator
 
     private static AuditAction ModeAction(DeletionMode mode)
         => mode == DeletionMode.Execute ? AuditAction.Drop : AuditAction.GenerateScript;
-
-    private static string Quote(string identifier) => $"[{identifier.Replace("]", "]]")}]";
 }

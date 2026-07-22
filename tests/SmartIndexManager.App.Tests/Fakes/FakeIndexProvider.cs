@@ -49,5 +49,8 @@ public sealed class FakeIndexProvider : IIndexProvider
     public Task<bool> IndexExistsAsync(string database, string schema, string table, string index, CancellationToken ct = default)
         => Task.FromResult(false);
 
+    public Task<bool> TableExistsAsync(string database, string schema, string table, CancellationToken ct = default)
+        => Task.FromResult(true);
+
     public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
 }

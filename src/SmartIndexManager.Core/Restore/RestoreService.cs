@@ -48,13 +48,14 @@ public sealed class RestoreService
                 if (!File.Exists(filePath))
                     throw new FileNotFoundException($"Backup file not found: {entry.File}");
 
+                // The backup DDL recreates a schema/table-scoped index, so refuse early with a clear
+                // message if the target table is gone rather than letting the raw server error surface.
+                if (!await provider.TableExistsAsync(entry.Database, entry.Schema, entry.Table, cancellationToken).ConfigureAwait(false))
+                    throw new InvalidOperationException($"Table {entry.Schema}.{entry.Table} no longer exists.");
+
                 if (await provider.IndexExistsAsync(entry.Database, entry.Schema, entry.Table, entry.Index, cancellationToken).ConfigureAwait(false))
                     throw new InvalidOperationException($"Index {entry.Schema}.{entry.Table}.{entry.Index} already exists.");
 
-                // Table-existence pre-check: the backup DDL references a schema/table, and replaying it
-                // against a missing table would fail. The companion script sql/sqlserver/table-exists.sql
-                // is available for providers that expose a TableExists check; until then ExecuteDdlAsync
-                // surfaces the missing-table error from the server.
                 var ddl = File.ReadAllText(filePath);
                 await provider.ExecuteDdlAsync(entry.Database, ddl, cancellationToken).ConfigureAwait(false);
 

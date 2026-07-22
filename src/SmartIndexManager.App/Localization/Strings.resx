@@ -268,6 +268,9 @@
   <data name="Action_GenerateScript" xml:space="preserve">
     <value>Generating script...</value>
   </data>
+  <data name="Action_Failed" xml:space="preserve">
+    <value>Failed: {0}</value>
+  </data>
   <data name="DryRun_Reliability" xml:space="preserve">
     <value>Reliability: {0}</value>
   </data>

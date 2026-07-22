@@ -40,8 +40,7 @@
                     <TextBlock Grid.Column="2" Classes="caption" VerticalAlignment="Center" Margin="8,0,8,0"
                                Text="{Binding Grid.MatchCountText}" />
                     <Button Grid.Column="3" Content="Add to basket"
-                            Command="{Binding AddSelectedToBasketCommand}"
-                            IsEnabled="{Binding Grid.SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            Command="{Binding AddSelectedToBasketCommand}" />
                 </Grid>
                 <Grid>
                     <DataGrid x:CompileBindings="False"

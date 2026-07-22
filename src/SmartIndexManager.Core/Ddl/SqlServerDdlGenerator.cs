@@ -42,6 +42,11 @@ public static class SqlServerDdlGenerator
         return new DdlSuccess(sb.ToString());
     }
 
+    // Single source of truth for the DROP INDEX statement, shared by the deletion
+    // orchestrator's script mode and the provider's live DROP so the two cannot drift.
+    public static string GenerateDropStatement(string schema, string table, string index)
+        => $"DROP INDEX {Quote(index)} ON {Quote(schema)}.{Quote(table)};";
+
     private static string BuildOptions(IndexOptions o)
     {
         var parts = new List<string>
@@ -58,5 +63,5 @@ public static class SqlServerDdlGenerator
 
     private static string OnOff(bool value) => value ? "ON" : "OFF";
 
-    private static string Quote(string identifier) => $"[{identifier.Replace("]", "]]")}]";
+    private static string Quote(string identifier) => SqlIdentifier.Quote(identifier);
 }

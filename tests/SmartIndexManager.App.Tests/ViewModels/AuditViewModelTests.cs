@@ -16,8 +16,26 @@ public class AuditViewModelTests : IDisposable
     {
         var path = Path.Combine(_dir, "audit.jsonl");
         AuditLog.Append(path, new AuditEntry(DateTime.UtcNow, AuditAction.Drop, "PROD01", "Sales", "op", "detail"));
-        var vm = new AuditViewModel(new AppPaths(_dir, _dir, _dir), new ResxLocalizer());
+        var vm = new AuditViewModel(new AppPaths(_dir, _dir, _dir));
         await vm.LoadAsync(CancellationToken.None);
         Assert.Single(vm.Entries);
+    }
+
+    [Fact]
+    public async Task Filter_narrows_entries()
+    {
+        var path = Path.Combine(_dir, "audit.jsonl");
+        AuditLog.Append(path, new AuditEntry(DateTime.UtcNow, AuditAction.Drop, "PROD01", "Sales", "op", "dropped IX_A"));
+        AuditLog.Append(path, new AuditEntry(DateTime.UtcNow, AuditAction.Restore, "PROD01", "HR", "op", "restored IX_B"));
+        var vm = new AuditViewModel(new AppPaths(_dir, _dir, _dir));
+        await vm.LoadAsync(CancellationToken.None);
+        Assert.Equal(2, vm.Entries.Count);
+
+        vm.Filter = "HR";
+        Assert.Single(vm.Entries);
+        Assert.Equal("HR", vm.Entries[0].Database);
+
+        vm.Filter = "";
+        Assert.Equal(2, vm.Entries.Count);
     }
 }

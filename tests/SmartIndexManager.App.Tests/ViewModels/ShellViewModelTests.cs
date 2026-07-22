@@ -46,7 +46,7 @@ public class ShellViewModelTests : IDisposable
         var basketVm = new DeletionBasketViewModel(basket, new DeletionOrchestrator(Path.Combine(_dir, "audit.jsonl")), dryRun, paths, new ResxLocalizer());
         var browse = new BrowseViewModel(new IndexGridViewModel(), basketVm, paths, new ResxLocalizer());
         var restore = new RestoreViewModel(paths, new ResxLocalizer());
-        var audit = new AuditViewModel(paths, new ResxLocalizer());
+        var audit = new AuditViewModel(paths);
         var settings = new SettingsViewModel(new SettingsService(), paths, new ResxLocalizer());
         return new ShellViewModel(session, browse, basketVm, restore, audit, settings,
             new PermissionStatusViewModel(new ResxLocalizer()), new ThemeService(paths), new ResxLocalizer());

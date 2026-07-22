@@ -41,4 +41,7 @@ public interface IIndexProvider : IAsyncDisposable
 
     Task<bool> IndexExistsAsync(
         string database, string schema, string table, string index, CancellationToken cancellationToken = default);
+
+    Task<bool> TableExistsAsync(
+        string database, string schema, string table, CancellationToken cancellationToken = default);
 }

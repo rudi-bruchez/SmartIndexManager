@@ -46,7 +46,7 @@ public sealed class DryRunReportBuilder
             });
         }
 
-        var reliability = ComputeReliability(provider, entries);
+        var reliability = ComputeReliability(provider);
         return new DryRunReport
         {
             Server = provider.ServerInfo.ServerName,
@@ -60,13 +60,17 @@ public sealed class DryRunReportBuilder
         };
     }
 
-    private static DryRunReliabilityBadge ComputeReliability(IIndexProvider provider, List<DryRunReportEntry> entries)
+    // Spec §11: the reliability badge reflects how trustworthy the "unused" call is, based on
+    // uptime, Query Store availability and platform. A short observation window, Azure (DMV
+    // resets), or the absence of Query Store (leaving only the volatile plan cache to corroborate
+    // usage) all reduce reliability.
+    private static DryRunReliabilityBadge ComputeReliability(IIndexProvider provider)
     {
         if (provider.ServerInfo.UptimeDays < 30)
             return DryRunReliabilityBadge.Orange;
         if (provider.ServerInfo.Platform == ServerPlatform.AzureSqlDatabase)
             return DryRunReliabilityBadge.Orange;
-        if (entries.Any(e => e.Queries.Count == 0 && provider.Capabilities.SupportsQueryStore))
+        if (!provider.Capabilities.SupportsQueryStore)
             return DryRunReliabilityBadge.Orange;
         return DryRunReliabilityBadge.Green;
     }

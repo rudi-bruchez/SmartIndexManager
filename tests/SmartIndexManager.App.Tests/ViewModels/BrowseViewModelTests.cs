@@ -126,6 +126,26 @@ public class BrowseViewModelTests : IDisposable
         Assert.Null(vm.ErrorMessage);
     }
 
+    [Fact]
+    public void AddSelectedToBasket_can_execute_only_for_a_deletable_selection()
+    {
+        var vm = Build();
+        Assert.False(vm.AddSelectedToBasketCommand.CanExecute(null));   // nothing selected
+
+        var deletable = new IndexRowViewModel(IndexModelFactory.Nonclustered(name: "IX_ok"), null, Safe(), false, false);
+        var blocked = new IndexRowViewModel(IndexModelFactory.Nonclustered(name: "IX_no"), null, NotDeletable(), false, false);
+        vm.Grid.SetRows(new[] { deletable, blocked });
+
+        vm.Grid.SelectedRow = blocked;
+        Assert.False(vm.AddSelectedToBasketCommand.CanExecute(null));
+
+        vm.Grid.SelectedRow = deletable;
+        Assert.True(vm.AddSelectedToBasketCommand.CanExecute(null));
+    }
+
     private static Core.Safety.SafetyAssessment Safe() =>
         new(Core.Safety.DeletionEligibility.Deletable, null, []);
+
+    private static Core.Safety.SafetyAssessment NotDeletable() =>
+        new(Core.Safety.DeletionEligibility.NotDeletable, "unique", []);
 }

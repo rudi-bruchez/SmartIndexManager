@@ -52,6 +52,7 @@ public class DeletionOrchestratorTests : IDisposable
         }
         public Task ExecuteDdlAsync(string database, string sql, CancellationToken ct) => Task.CompletedTask;
         public Task<bool> IndexExistsAsync(string database, string schema, string table, string index, CancellationToken ct) => Task.FromResult(false);
+        public Task<bool> TableExistsAsync(string database, string schema, string table, CancellationToken ct) => Task.FromResult(true);
     }
 
     private DeletionSession Session() => new("PROD01", "DOMAIN\\rudi", "1.0.0", 92, _dir, DeletionMode.Execute);

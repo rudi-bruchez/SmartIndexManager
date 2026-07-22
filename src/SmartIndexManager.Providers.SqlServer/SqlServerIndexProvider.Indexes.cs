@@ -6,17 +6,18 @@ namespace SmartIndexManager.Providers.SqlServer;
 
 public sealed partial class SqlServerIndexProvider
 {
-    public async Task<IReadOnlyList<IndexModel>> GetIndexesAsync(
+    public Task<IReadOnlyList<IndexModel>> GetIndexesAsync(
         IReadOnlyList<string> databases, CancellationToken cancellationToken = default)
-    {
-        var result = new List<IndexModel>();
-        foreach (var database in databases)
+        => ExclusiveAsync(async ct =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            result.AddRange(await GetIndexesForDatabaseAsync(database, cancellationToken).ConfigureAwait(false));
-        }
-        return result;
-    }
+            var result = new List<IndexModel>();
+            foreach (var database in databases)
+            {
+                ct.ThrowIfCancellationRequested();
+                result.AddRange(await GetIndexesForDatabaseAsync(database, ct).ConfigureAwait(false));
+            }
+            return (IReadOnlyList<IndexModel>)result;
+        }, cancellationToken);
 
     private async Task<IReadOnlyList<IndexModel>> GetIndexesForDatabaseAsync(string database, CancellationToken ct)
     {

@@ -91,6 +91,11 @@ public sealed partial class DeletionBasketViewModel : ViewModelBase
             StatusMessage = $"{mode}: {result.Results.Count(r => r.Status == (mode == DeletionMode.Execute ? IndexDeletionStatus.Dropped : IndexDeletionStatus.Scripted))} / {result.Results.Count}";
             Clear();
         }
+        catch (Exception ex)
+        {
+            // The in-progress message must never be left stuck: surface the failure instead.
+            StatusMessage = string.Format(_loc["Action_Failed"], ex.Message);
+        }
         finally
         {
             IsBusy = false;

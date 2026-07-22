@@ -17,7 +17,7 @@ public class DryRunReportBuilderTests
             ServerName = "PROD01", ProductVersion = new Version(16, 0),
             Edition = "Developer", Platform = ServerPlatform.OnPremises, UptimeDays = 92
         };
-        public ProviderCapabilities Capabilities { get; } = new()
+        public ProviderCapabilities Capabilities { get; init; } = new()
             { SupportsPlanCache = true, SupportsQueryStore = true };
         public PermissionReport Permissions { get; } = new()
             { CanViewState = true, CanAlter = true, CanAccessQueryStore = true };
@@ -31,6 +31,7 @@ public class DryRunReportBuilderTests
         public Task DropIndexAsync(IndexRef index, TimeSpan timeout, CancellationToken ct) => Task.CompletedTask;
         public Task ExecuteDdlAsync(string database, string sql, CancellationToken ct) => Task.CompletedTask;
         public Task<bool> IndexExistsAsync(string database, string schema, string table, string index, CancellationToken ct) => Task.FromResult(true);
+        public Task<bool> TableExistsAsync(string database, string schema, string table, CancellationToken ct) => Task.FromResult(true);
     }
 
     [Fact]
@@ -52,5 +53,32 @@ public class DryRunReportBuilderTests
         Assert.Single(report.Entries);
         Assert.Single(report.Entries[0].Queries);
         Assert.Equal(8.0, report.TotalSizeMb);
+    }
+
+    [Fact]
+    public async Task Reliability_is_green_on_healthy_server_with_query_store()
+    {
+        var basket = OneEntryBasket();
+        var report = await new DryRunReportBuilder().BuildAsync(new FakeProvider(), basket, CancellationToken.None);
+        Assert.Equal(DryRunReliabilityBadge.Green, report.ReliabilityBadge);
+    }
+
+    [Fact]
+    public async Task Reliability_is_orange_without_query_store()
+    {
+        var basket = OneEntryBasket();
+        var provider = new FakeProvider { Capabilities = new ProviderCapabilities { SupportsPlanCache = true } };
+        var report = await new DryRunReportBuilder().BuildAsync(provider, basket, CancellationToken.None);
+        Assert.Equal(DryRunReliabilityBadge.Orange, report.ReliabilityBadge);
+    }
+
+    private static DeletionBasket OneEntryBasket()
+    {
+        var basket = new DeletionBasket();
+        basket.Add(
+            new IndexModel { Database = "Sales", Schema = "dbo", Table = "Orders", Name = "IX_A", Type = IndexType.NonclusteredRowstore },
+            new SafetyAssessment(DeletionEligibility.Deletable, null, []),
+            new ConfidenceScore(90, ScoreColor.Green, []));
+        return basket;
     }
 }
