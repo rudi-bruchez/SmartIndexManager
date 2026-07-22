@@ -28,6 +28,7 @@ public class ScriptContractTests
     [InlineData("index-droppable-check", new[] { "IsDroppable" })]
     [InlineData("database-exists", new[] { "Exists" })]
     [InlineData("index-exists", new[] { "Exists" })]
+    [InlineData("table-exists", new[] { "Exists" })]
     public void Script_ships_and_declares_expected_columns(string name, string[] expected)
     {
         var script = SqlScriptLoader.Load(ScriptRoot(), name);
