@@ -1,9 +1,12 @@
+using SmartIndexManager.Core.Settings;
+
 namespace SmartIndexManager.App.Services;
 
 public interface IAppPaths
 {
-    string ConfigDir { get; }          // per-platform app config directory
-    string SnapshotRoot { get; }       // <ConfigDir>
-    string DefaultBackupRoot { get; }  // <Documents>/SmartIndexManager
-    string SqlScriptRoot { get; }      // directory holding sql/sqlserver/*.sql
+    string ConfigDir { get; }
+    string SnapshotRoot { get; }
+    string DefaultBackupRoot { get; }
+    string SqlScriptRoot { get; }
+    AppSettings Settings { get; }
 }

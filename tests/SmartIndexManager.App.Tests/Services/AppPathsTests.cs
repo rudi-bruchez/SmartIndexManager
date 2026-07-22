@@ -1,4 +1,5 @@
 using SmartIndexManager.App.Services;
+using SmartIndexManager.Core.Settings;
 
 namespace SmartIndexManager.App.Tests.Services;
 
@@ -21,5 +22,14 @@ public class AppPathsTests
         var paths = AppPaths.Default();
         Assert.Contains("SmartIndexManager", paths.ConfigDir);
         Assert.EndsWith(Path.Combine("sql", "sqlserver"), paths.SqlScriptRoot);
+    }
+
+    [Fact]
+    public void Overrides_use_settings_when_provided()
+    {
+        var paths = new AppPaths(configDir: "/cfg", documentsDir: "/docs", sqlScriptRoot: "/sql",
+            settings: new AppSettings { DefaultBackupRoot = "/custom/backups", SnapshotRoot = "/custom/snaps" });
+        Assert.Equal("/custom/backups", paths.DefaultBackupRoot);
+        Assert.Equal("/custom/snaps", paths.SnapshotRoot);
     }
 }
