@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SmartIndexManager.App.ViewModels"
+             x:Class="SmartIndexManager.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+    <StackPanel Margin="16" Spacing="12">
+        <TextBlock Text="Backup root" FontWeight="SemiBold" />
+        <TextBox Text="{Binding DefaultBackupRoot}" />
+        <TextBlock Text="Snapshot root" FontWeight="SemiBold" />
+        <TextBox Text="{Binding SnapshotRoot}" />
+        <TextBlock Text="Snapshot retention (days)" FontWeight="SemiBold" />
+        <NumericUpDown Value="{Binding SnapshotRetentionDays}" Minimum="1" />
+        <Button Content="Save" Command="{Binding SaveCommand}" HorizontalAlignment="Left" />
+    </StackPanel>
+</UserControl>
